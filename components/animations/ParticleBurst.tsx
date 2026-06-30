@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet } from 'react-native';
 import { Canvas, Circle, Group, vec } from '@shopify/react-native-skia';
 
+import { panelEffectDuration } from '@/animations/lifeFeedback';
 import type { EffectKind } from '@/animations/effects';
 import { palette } from '@/theme';
 
@@ -10,6 +11,7 @@ type ParticleBurstProps = {
   kind: EffectKind;
   width: number;
   height: number;
+  magnitude?: number;
   reducedMotion?: boolean;
 };
 
@@ -30,6 +32,7 @@ export function ParticleBurst({
   kind,
   width,
   height,
+  magnitude = 1,
   reducedMotion,
 }: ParticleBurstProps) {
   const [visible, setVisible] = useState(false);
@@ -46,9 +49,10 @@ export function ParticleBurst({
 
   useEffect(() => {
     setVisible(true);
-    const timer = setTimeout(() => setVisible(false), reducedMotion ? 180 : 480);
+    const duration = panelEffectDuration(magnitude) * (reducedMotion ? 0.5 : 0.85);
+    const timer = setTimeout(() => setVisible(false), duration);
     return () => clearTimeout(timer);
-  }, [triggerId, reducedMotion]);
+  }, [triggerId, magnitude, reducedMotion]);
 
   if (!visible || width <= 0 || height <= 0) return null;
 

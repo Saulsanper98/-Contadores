@@ -3,6 +3,7 @@ import { Gesture } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 
 import { getPanelTouchZone } from '@/engine/panelTouchZones';
+import { lifeFeedbackDuration } from '@/animations/lifeFeedback';
 import { layout } from '@/theme/tokens';
 
 const COMBAT_DRAG_THRESHOLD = 8;
@@ -57,7 +58,7 @@ export function usePlayerPanelGestures({
   const flashDelta = useCallback(
     (zone: 'left' | 'right', delta: number) => {
       setZoneDelta(zone, delta);
-      setTimeout(() => setZoneDelta(zone, null), 350);
+      setTimeout(() => setZoneDelta(zone, null), lifeFeedbackDuration(delta));
     },
     [setZoneDelta],
   );

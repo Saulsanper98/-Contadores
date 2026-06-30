@@ -6,6 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { PanelEffectWrapper } from '@/components/animations/PanelEffectWrapper';
 import type { PanelBounds } from '@/components/board/CombatDragOverlay';
 import { CommanderArtBackground } from '@/components/board/CommanderArtBackground';
+import { AnimatedLifeCounter } from '@/components/board/AnimatedLifeCounter';
 import { FloatingDelta } from '@/components/board/FloatingDelta';
 import { PanelLifeStrip } from '@/components/board/PanelLifeStrip';
 import type { EffectKind } from '@/animations/effects';
@@ -28,6 +29,7 @@ type PlayerPanelProps = {
   isActive?: boolean;
   effectId?: number;
   effectKind?: EffectKind | null;
+  effectMagnitude?: number;
   reducedMotion?: boolean;
   combatHighlight?: 'source' | 'target' | null;
   onEffectEnd?: () => void;
@@ -55,6 +57,7 @@ export function PlayerPanel({
   isActive,
   effectId = 0,
   effectKind = null,
+  effectMagnitude = 1,
   reducedMotion,
   combatHighlight,
   onEffectEnd,
@@ -120,6 +123,7 @@ export function PlayerPanel({
       <PanelEffectWrapper
         effectId={effectId}
         effectKind={effectKind}
+        effectMagnitude={effectMagnitude}
         reducedMotion={reducedMotion}
         onEffectEnd={onEffectEnd}>
         <CommanderArtBackground
@@ -176,18 +180,14 @@ export function PlayerPanel({
                     {player.name}
                   </Text>
 
-                  <Text
-                    style={[
-                      styles.life,
-                      {
-                        fontSize: lifeFontSize,
-                        color: disabled ? palette.eliminated : theme.lifeColor,
-                      },
-                      player.life <= 10 && !disabled && styles.lifeLow,
-                      disabled && styles.lifeEliminated,
-                    ]}>
-                    {player.life}
-                  </Text>
+                  <AnimatedLifeCounter
+                    life={player.life}
+                    fontSize={lifeFontSize}
+                    isEliminated={disabled}
+                    style={{ color: disabled ? palette.eliminated : theme.lifeColor }}
+                    lowLifeStyle={styles.lifeLow}
+                    eliminatedStyle={styles.lifeEliminated}
+                  />
 
                   <Text style={[styles.seat, { color: theme.mutedColor }]} numberOfLines={1}>
                     {player.commanderName
@@ -346,14 +346,6 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(0, 0, 0, 0.6)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
-  },
-  life: {
-    fontFamily: typography.fontFamily.monoBold,
-    letterSpacing: typography.letterSpacing.counter,
-    marginVertical: spacing.xs,
-    textShadowColor: 'rgba(0, 0, 0, 0.65)',
-    textShadowOffset: { width: 0, height: 3 },
-    textShadowRadius: 10,
   },
   lifeLow: {
     color: palette.warning,

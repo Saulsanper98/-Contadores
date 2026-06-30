@@ -64,7 +64,7 @@ export type GameToast = {
 };
 
 type MutateOptions = {
-  panelEffect?: { playerId: string; kind: EffectKind } | null;
+  panelEffect?: { playerId: string; kind: EffectKind; magnitude?: number } | null;
   globalEffect?: GlobalEffect['kind'] | null;
   skipHistory?: boolean;
   event?: {
@@ -259,11 +259,16 @@ export const useGameStore = create<GameStore>()(
         const newPast = options.skipHistory ? past : pushSnapshot(past, game);
 
         let panelEffect = options.panelEffect
-          ? { ...options.panelEffect, id: nextEffectId() }
+          ? { ...options.panelEffect, id: nextEffectId(), magnitude: options.panelEffect.magnitude }
           : null;
 
         if (eliminations.length > 0 && eliminations[0]) {
-          panelEffect = { playerId: eliminations[0], kind: 'elimination', id: nextEffectId() };
+          panelEffect = {
+            playerId: eliminations[0],
+            kind: 'elimination',
+            id: nextEffectId(),
+            magnitude: 1,
+          };
         }
 
         const globalEffect = options.globalEffect
@@ -366,7 +371,9 @@ export const useGameStore = create<GameStore>()(
           if (!game) return;
           const kind = effectKindForLifeDelta(delta);
           mutate((g) => adjustLife(g, playerId, delta), {
-            panelEffect: kind ? { playerId, kind } : null,
+            panelEffect: kind
+              ? { playerId, kind, magnitude: Math.abs(delta) }
+              : null,
             event: {
               kind: 'life_change',
               playerId,
@@ -380,7 +387,7 @@ export const useGameStore = create<GameStore>()(
           const { game } = get();
           if (!game || amount === 0) return;
           mutate((g) => applyCommanderDamage(g, targetId, sourceId, amount), {
-            panelEffect: { playerId: targetId, kind: 'commander' },
+            panelEffect: { playerId: targetId, kind: 'commander', magnitude: Math.abs(amount) },
             event: {
               kind: 'commander_damage',
               targetId,
@@ -395,7 +402,7 @@ export const useGameStore = create<GameStore>()(
           const { game } = get();
           if (!game || delta === 0) return;
           mutate((g) => adjustPoison(g, playerId, delta), {
-            panelEffect: { playerId, kind: 'poison' },
+            panelEffect: { playerId, kind: 'poison', magnitude: Math.abs(delta) },
             event: {
               kind: 'poison_change',
               playerId,
@@ -513,6 +520,7 @@ export const useGameStore = create<GameStore>()(
               panelEffect: {
                 playerId: targetId,
                 kind: type === 'infect' ? 'poison' : type === 'commander' ? 'commander' : 'damage',
+                magnitude: Math.abs(amount),
               },
               event: {
                 kind: 'combat_resolved',

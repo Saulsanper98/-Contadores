@@ -13,6 +13,7 @@ export type PanelEffect = {
   id: number;
   playerId: string;
   kind: EffectKind;
+  magnitude?: number;
 };
 
 export type GlobalEffect = {

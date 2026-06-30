@@ -8,6 +8,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
+import { panelEffectDuration } from '@/animations/lifeFeedback';
 import { ParticleBurst } from '@/components/animations/ParticleBurst';
 import type { EffectKind } from '@/animations/effects';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -18,6 +19,7 @@ type PanelEffectWrapperProps = {
   children: ReactNode;
   effectId: number;
   effectKind: EffectKind | null;
+  effectMagnitude?: number;
   reducedMotion?: boolean;
   onEffectEnd?: () => void;
 };
@@ -36,6 +38,7 @@ export function PanelEffectWrapper({
   children,
   effectId,
   effectKind,
+  effectMagnitude = 1,
   reducedMotion,
   onEffectEnd,
 }: PanelEffectWrapperProps) {
@@ -51,46 +54,72 @@ export function PanelEffectWrapper({
       return;
     }
 
+    const magnitude = Math.max(1, effectMagnitude);
+    const totalMs = panelEffectDuration(magnitude);
+    const flashOutMs = Math.round(totalMs * 0.55);
+
     if (reducedMotion) {
-      flash.value = withSequence(withTiming(0.35, { duration: 80 }), withTiming(0, { duration: 120 }));
-      const timer = setTimeout(() => onEffectEnd?.(), 220);
+      flash.value = withSequence(
+        withTiming(0.35, { duration: 120 }),
+        withTiming(0, { duration: 180 }),
+      );
+      const timer = setTimeout(() => onEffectEnd?.(), totalMs * 0.7);
       return () => clearTimeout(timer);
     }
 
     switch (effectKind) {
       case 'damage':
       case 'commander':
-      case 'groupDamage':
-        shakeX.value = withSequence(
-          withTiming(-6, { duration: 40 }),
-          withSpring(0, spring.stiff),
+      case 'groupDamage': {
+        const shakes = Math.min(4, 1 + Math.floor(magnitude / 3));
+        const shakeSeq = [];
+        for (let i = 0; i < shakes; i += 1) {
+          shakeSeq.push(withTiming(i % 2 === 0 ? -7 : 7, { duration: 55 }));
+        }
+        shakeSeq.push(withSpring(0, spring.stiff));
+        shakeX.value = withSequence(...shakeSeq);
+        flash.value = withSequence(
+          withTiming(0.55 + Math.min(0.2, magnitude * 0.03), { duration: 100 }),
+          withTiming(0, { duration: flashOutMs }),
         );
-        flash.value = withSequence(withTiming(0.55, { duration: 60 }), withTiming(0, { duration: 200 }));
         break;
+      }
       case 'heal':
       case 'revive':
       case 'groupHeal':
-        scale.value = withSequence(withSpring(1.04, spring.gentle), withSpring(1, spring.gentle));
-        flash.value = withSequence(withTiming(0.4, { duration: 80 }), withTiming(0, { duration: 280 }));
+        scale.value = withSequence(
+          withSpring(1.03 + Math.min(0.06, magnitude * 0.01), spring.gentle),
+          withSpring(1, spring.gentle),
+        );
+        flash.value = withSequence(
+          withTiming(0.4, { duration: 120 }),
+          withTiming(0, { duration: flashOutMs }),
+        );
         break;
       case 'poison':
-        flash.value = withSequence(withTiming(0.45, { duration: 100 }), withTiming(0, { duration: 300 }));
+        flash.value = withSequence(
+          withTiming(0.45, { duration: 140 }),
+          withTiming(0, { duration: flashOutMs }),
+        );
         break;
       case 'elimination':
-        flash.value = withTiming(0.5, { duration: 400 });
-        scale.value = withTiming(0.97, { duration: 300 });
+        flash.value = withTiming(0.5, { duration: totalMs * 0.6 });
+        scale.value = withTiming(0.97, { duration: totalMs * 0.5 });
         break;
       case 'monarch':
         scale.value = withSequence(withSpring(1.08, spring.bouncy), withSpring(1, spring.gentle));
-        flash.value = withSequence(withTiming(0.35, { duration: 100 }), withTiming(0, { duration: 300 }));
+        flash.value = withSequence(
+          withTiming(0.35, { duration: 120 }),
+          withTiming(0, { duration: flashOutMs }),
+        );
         break;
       default:
         break;
     }
 
-    const timer = setTimeout(() => onEffectEnd?.(), 520);
+    const timer = setTimeout(() => onEffectEnd?.(), totalMs);
     return () => clearTimeout(timer);
-  }, [effectId, effectKind, flash, onEffectEnd, reducedMotion, scale, shakeX]);
+  }, [effectId, effectKind, effectMagnitude, flash, onEffectEnd, reducedMotion, scale, shakeX]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: shakeX.value }, { scale: scale.value }],
@@ -118,6 +147,7 @@ export function PanelEffectWrapper({
           kind={effectKind}
           width={size.w}
           height={size.h}
+          magnitude={effectMagnitude}
           reducedMotion={reducedMotion}
         />
       ) : null}

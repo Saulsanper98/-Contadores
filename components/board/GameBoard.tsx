@@ -140,15 +140,19 @@ export function GameBoard({
   const resolveEffect = (
     playerId: string,
     seatIndex: number,
-  ): { id: number; kind: EffectKind | null } => {
+  ): { id: number; kind: EffectKind | null; magnitude: number } => {
     if (panelEffect?.playerId === playerId) {
-      return { id: panelEffect.id, kind: panelEffect.kind };
+      return {
+        id: panelEffect.id,
+        kind: panelEffect.kind,
+        magnitude: panelEffect.magnitude ?? 1,
+      };
     }
     if (globalEffect) {
       const kind = globalEffect.kind === 'groupHeal' ? 'groupHeal' : 'groupDamage';
-      return { id: globalEffect.id * 100 + seatIndex, kind };
+      return { id: globalEffect.id * 100 + seatIndex, kind, magnitude: 1 };
     }
-    return { id: 0, kind: null };
+    return { id: 0, kind: null, magnitude: 1 };
   };
 
   return (
@@ -182,6 +186,7 @@ export function GameBoard({
               isActive={game.turn.activePlayerId === player.id}
               effectId={fx.id}
               effectKind={fx.kind}
+              effectMagnitude={fx.magnitude}
               reducedMotion={reducedMotion}
               combatHighlight={isDragTarget ? 'target' : isDragSource ? 'source' : null}
               onRegisterBounds={registerPanelBounds}
