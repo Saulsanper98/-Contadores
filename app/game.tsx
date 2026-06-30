@@ -1,15 +1,22 @@
 import { router } from 'expo-router';
+import { useKeepAwake } from 'expo-keep-awake';
 import { StatusBar } from 'expo-status-bar';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { GameBoard } from '@/components/board/GameBoard';
 import { Button } from '@/components/ui/Button';
 import { Screen } from '@/components/ui/Screen';
-import { manaColors, palette, radius, spacing, typography } from '@/theme';
+import { palette, spacing, typography } from '@/theme';
 import { useGameStore } from '@/store/gameStore';
 
-export default function GamePlaceholderScreen() {
+export default function GameScreen() {
+  useKeepAwake();
+
+  const insets = useSafeAreaInsets();
   const game = useGameStore((state) => state.game);
   const clearGame = useGameStore((state) => state.clearGame);
+  const adjustPlayerLife = useGameStore((state) => state.adjustPlayerLife);
 
   if (!game) {
     return (
@@ -23,54 +30,32 @@ export default function GamePlaceholderScreen() {
     );
   }
 
-  const handleBack = () => {
+  const handleExit = () => {
     clearGame();
     router.replace('/');
   };
 
   return (
-    <Screen padded={false}>
-      <StatusBar style="light" />
-      <ScrollView contentContainerStyle={styles.scroll}>
-        <Text style={styles.badge}>MOTOR OK · FASE 2 PRÓXIMAMENTE</Text>
-        <Text style={styles.title}>Partida iniciada</Text>
-        <Text style={styles.subtitle}>
-          {game.setup.playerCount} jugadores · {game.setup.startingLife} vidas ·{' '}
-          {game.setup.genericCounters.length} contadores
-        </Text>
+    <View style={[styles.root, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+      <StatusBar style="light" hidden />
 
-        <View style={styles.list}>
-          {game.players.map((player, index) => (
-            <View
-              key={player.id}
-              style={[
-                styles.playerRow,
-                { borderLeftColor: manaColors[player.manaIdentity].primary },
-              ]}>
-              <View style={styles.playerMeta}>
-                <Text style={styles.playerSeat}>Asiento {index + 1}</Text>
-                <Text style={styles.playerName}>{player.name}</Text>
-              </View>
-              <Text style={styles.playerLife}>{player.life}</Text>
-            </View>
-          ))}
-        </View>
+      <View style={styles.toolbar}>
+        <Pressable accessibilityRole="button" onPress={handleExit} hitSlop={12}>
+          <Text style={styles.exit}>✕ Salir</Text>
+        </Pressable>
+        <Text style={styles.toolbarTitle}>Partida · {game.players.length} jugadores</Text>
+        <View style={styles.toolbarSpacer} />
+      </View>
 
-        <Text style={styles.note}>
-          El tablero multijugador con rotación por asiento llega en la Fase 2. El motor de reglas ya
-          está listo y testeado.
-        </Text>
-
-        <Button label="Volver al inicio" variant="secondary" onPress={handleBack} />
-      </ScrollView>
-    </Screen>
+      <GameBoard game={game} onLifeChange={adjustPlayerLife} />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: {
-    padding: spacing.lg,
-    gap: spacing.lg,
+  root: {
+    flex: 1,
+    backgroundColor: palette.background,
   },
   empty: {
     flex: 1,
@@ -83,56 +68,27 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.lg,
     color: palette.textPrimary,
   },
-  badge: {
-    fontFamily: typography.fontFamily.mono,
-    fontSize: typography.fontSize.xs,
-    letterSpacing: typography.letterSpacing.wide,
-    color: palette.accent,
-  },
-  title: {
-    fontFamily: typography.fontFamily.sansBold,
-    fontSize: typography.fontSize.xxl,
-    color: palette.textPrimary,
-  },
-  subtitle: {
-    fontFamily: typography.fontFamily.sans,
-    fontSize: typography.fontSize.md,
-    color: palette.textSecondary,
-  },
-  list: {
-    gap: spacing.sm,
-  },
-  playerRow: {
+  toolbar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: palette.surface,
-    borderRadius: radius.md,
-    borderLeftWidth: 4,
-    padding: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderBottomWidth: 1,
+    borderBottomColor: palette.border,
   },
-  playerMeta: {
-    gap: 2,
-  },
-  playerSeat: {
-    fontFamily: typography.fontFamily.sans,
-    fontSize: typography.fontSize.xs,
-    color: palette.textMuted,
-  },
-  playerName: {
-    fontFamily: typography.fontFamily.sansSemiBold,
-    fontSize: typography.fontSize.md,
-    color: palette.textPrimary,
-  },
-  playerLife: {
-    fontFamily: typography.fontFamily.monoBold,
-    fontSize: typography.fontSize.xl,
-    color: palette.life,
-  },
-  note: {
-    fontFamily: typography.fontFamily.sans,
+  exit: {
+    fontFamily: typography.fontFamily.sansMedium,
     fontSize: typography.fontSize.sm,
-    lineHeight: typography.fontSize.sm * typography.lineHeight.relaxed,
+    color: palette.textSecondary,
+    minWidth: 64,
+  },
+  toolbarTitle: {
+    fontFamily: typography.fontFamily.sansSemiBold,
+    fontSize: typography.fontSize.sm,
     color: palette.textMuted,
+  },
+  toolbarSpacer: {
+    minWidth: 64,
   },
 });

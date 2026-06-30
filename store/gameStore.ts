@@ -4,6 +4,7 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 
 import {
   addGenericCounterDef,
+  adjustLife,
   clampPlayerCount,
   createDefaultSetup,
   createGameFromSetup,
@@ -98,9 +99,10 @@ interface GameStore {
   game: GameState | null;
   startGame: (setup: GameSetup) => GameState;
   clearGame: () => void;
+  adjustPlayerLife: (playerId: string, delta: number) => void;
 }
 
-export const useGameStore = create<GameStore>((set) => ({
+export const useGameStore = create<GameStore>((set, get) => ({
   game: null,
 
   startGame: (setup) => {
@@ -110,6 +112,12 @@ export const useGameStore = create<GameStore>((set) => ({
   },
 
   clearGame: () => set({ game: null }),
+
+  adjustPlayerLife: (playerId, delta) => {
+    const { game } = get();
+    if (!game || delta === 0) return;
+    set({ game: adjustLife(game, playerId, delta) });
+  },
 }));
 
 export const MANA_OPTIONS: { id: ManaIdentity; label: string; symbol: string }[] = [
