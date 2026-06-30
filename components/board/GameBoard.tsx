@@ -132,6 +132,7 @@ export function GameBoard({
               rotation={seat.rotation}
               lifeFontSize={lifeFontSize(game.players.length)}
               isMonarch={game.monarchPlayerId === player.id}
+              isActive={game.turn.activePlayerId === player.id}
               effectId={fx.id}
               effectKind={fx.kind}
               reducedMotion={reducedMotion}

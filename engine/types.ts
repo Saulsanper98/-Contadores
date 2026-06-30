@@ -6,6 +6,43 @@ export type PlayerId = string;
 
 export type EliminationReason = 'life' | 'commander' | 'poison';
 
+export type GameEventKind =
+  | 'game_start'
+  | 'turn_pass'
+  | 'life_change'
+  | 'commander_damage'
+  | 'poison_change'
+  | 'counter_change'
+  | 'combat_resolved'
+  | 'elimination'
+  | 'revive'
+  | 'monarch'
+  | 'group_damage'
+  | 'group_heal'
+  | 'note'
+  | 'dice_roll'
+  | 'action';
+
+export interface GameEvent {
+  id: string;
+  at: number;
+  kind: GameEventKind;
+  playerId?: PlayerId;
+  targetId?: PlayerId;
+  sourceId?: PlayerId;
+  amount?: number;
+  message: string;
+  meta?: Record<string, unknown>;
+}
+
+export interface TurnState {
+  activePlayerId: PlayerId | null;
+  turnStartedAt: number;
+  turnNumber: number;
+  turnDurationsMs: Record<PlayerId, number>;
+  gameStartedAt: number;
+}
+
 export interface GenericCounterDef {
   id: string;
   name: string;
@@ -50,4 +87,6 @@ export interface GameState {
   setup: GameSetup;
   players: PlayerGameState[];
   monarchPlayerId: PlayerId | null;
+  turn: TurnState;
+  events: GameEvent[];
 }

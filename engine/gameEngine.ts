@@ -1,6 +1,7 @@
 import { layout } from '@/theme/tokens';
 
 import { applyEliminationCheck } from './elimination';
+import { createInitialTurnState } from './turns';
 import type {
   GameSetup,
   GameState,
@@ -88,10 +89,14 @@ export function createGameFromSetup(setup: GameSetup): GameState {
     eliminationReason: null,
   }));
 
+  const startedAt = Date.now();
+
   return {
     setup: normalized,
     players,
     monarchPlayerId: null,
+    turn: createInitialTurnState(players, startedAt),
+    events: [],
   };
 }
 

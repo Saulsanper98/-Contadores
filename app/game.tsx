@@ -7,15 +7,18 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { GameBoard } from '@/components/board/GameBoard';
 import { CombatActionSheet } from '@/components/game/CombatActionSheet';
+import { EventTimelineSheet } from '@/components/game/EventTimelineSheet';
 import { GameMenuSheet } from '@/components/game/GameMenuSheet';
 import { GameToastOverlay } from '@/components/game/GameToastOverlay';
 import { GroupToolsSheet } from '@/components/game/GroupToolsSheet';
 import { PlayerActionSheet } from '@/components/game/PlayerActionSheet';
+import { TurnBar } from '@/components/game/TurnBar';
 import type { PlayerActionId } from '@/data/playerActions';
 import { Button } from '@/components/ui/Button';
 import { Screen } from '@/components/ui/Screen';
 import { getBoardGrid } from '@/engine/seatLayouts';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
+import { useLiveClock } from '@/hooks/useLiveClock';
 import { palette, radius, spacing, typography } from '@/theme';
 import { useGameStore } from '@/store/gameStore';
 
@@ -52,11 +55,17 @@ export default function GameScreen() {
   const applySetAllLife = useGameStore((state) => state.applySetAllLife);
   const resolveCombat = useGameStore((state) => state.resolveCombat);
   const handlePlayerAction = useGameStore((state) => state.handlePlayerAction);
+  const passTurn = useGameStore((state) => state.passTurn);
+  const addGameNote = useGameStore((state) => state.addGameNote);
 
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [groupOpen, setGroupOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [combatSession, setCombatSession] = useState<CombatSession | null>(null);
+  const [timelineOpen, setTimelineOpen] = useState(false);
+
+  const turnElapsedMs = useLiveClock(!!game?.turn, game?.turn?.turnStartedAt ?? null);
+  const gameElapsedMs = useLiveClock(!!game?.turn, game?.turn?.gameStartedAt ?? null);
 
   const canUndo = past.length > 0;
 
@@ -147,6 +156,14 @@ export default function GameScreen() {
         </Pressable>
       </View>
 
+      <TurnBar
+        game={game}
+        turnElapsedMs={turnElapsedMs}
+        gameElapsedMs={gameElapsedMs}
+        onPassTurn={passTurn}
+        onOpenTimeline={() => setTimelineOpen(true)}
+      />
+
       <GameBoard
         game={game}
         panelEffect={panelEffect}
@@ -181,6 +198,13 @@ export default function GameScreen() {
           onResolve={resolveCombat}
         />
       ) : null}
+
+      <EventTimelineSheet
+        visible={timelineOpen}
+        game={game}
+        onClose={() => setTimelineOpen(false)}
+        onAddNote={addGameNote}
+      />
 
       <GroupToolsSheet
         visible={groupOpen}

@@ -31,11 +31,22 @@ import {
   revivePlayer,
   setAllLife,
   setMonarch,
+  appendEvent,
+  normalizeGameState,
+  passTurn as passTurnEngine,
+  playerName,
 } from '@/engine';
 import type { CombatDamageType } from '@/data/combatTypes';
 import type { PlayerActionId } from '@/data/playerActions';
 import { PRESET_COUNTERS, presetToCounter } from '@/data/presetCounters';
-import type { GameSetup, GameState, GenericCounterDef, ManaIdentity, PlayerSetup } from '@/engine/types';
+import type {
+  GameEventKind,
+  GameSetup,
+  GameState,
+  GenericCounterDef,
+  ManaIdentity,
+  PlayerSetup,
+} from '@/engine/types';
 
 export type GameToast = {
   id: number;
@@ -47,6 +58,15 @@ type MutateOptions = {
   panelEffect?: { playerId: string; kind: EffectKind } | null;
   globalEffect?: GlobalEffect['kind'] | null;
   skipHistory?: boolean;
+  event?: {
+    kind: GameEventKind;
+    playerId?: string;
+    targetId?: string;
+    sourceId?: string;
+    amount?: number;
+    message: string;
+    meta?: Record<string, unknown>;
+  };
 };
 
 interface SetupStore {
@@ -159,6 +179,8 @@ interface GameStore {
     type: CombatDamageType;
   }) => void;
   handlePlayerAction: (playerId: string, actionId: PlayerActionId) => void;
+  passTurn: () => void;
+  addGameNote: (text: string) => void;
 }
 
 let toastCounter = 0;
@@ -177,13 +199,28 @@ export const useGameStore = create<GameStore>()(
         if (!game) return;
 
         const next = updater(game);
+        let withEvents = options.event ? appendEvent(next, options.event) : next;
+
+        const eliminations = findNewEliminations(game, withEvents);
+        const skipAutoEliminationLog = options.event?.kind === 'elimination';
+        if (!skipAutoEliminationLog) {
+          for (const playerId of eliminations) {
+            const reason = withEvents.players.find((p) => p.id === playerId)?.eliminationReason;
+            withEvents = appendEvent(withEvents, {
+              kind: 'elimination',
+              playerId,
+              message: `${playerName(withEvents, playerId)} eliminado`,
+              meta: { reason },
+            });
+          }
+        }
+
         const newPast = options.skipHistory ? past : pushSnapshot(past, game);
 
         let panelEffect = options.panelEffect
           ? { ...options.panelEffect, id: nextEffectId() }
           : null;
 
-        const eliminations = findNewEliminations(game, next);
         if (eliminations.length > 0 && eliminations[0]) {
           panelEffect = { playerId: eliminations[0], kind: 'elimination', id: nextEffectId() };
         }
@@ -197,7 +234,7 @@ export const useGameStore = create<GameStore>()(
           void triggerHaptic(globalEffect.kind === 'groupHeal' ? 'groupHeal' : 'groupDamage');
         }
 
-        set({ game: next, past: newPast, panelEffect, globalEffect });
+        set({ game: withEvents, past: newPast, panelEffect, globalEffect });
       };
 
       return {
@@ -209,13 +246,20 @@ export const useGameStore = create<GameStore>()(
         gameStartedAt: null,
 
         startGame: (setup) => {
-          const game = createGameFromSetup(setup);
+          const startedAt = Date.now();
+          let game = createGameFromSetup(setup);
+          game = normalizeGameState(game, startedAt);
+          game = appendEvent(game, {
+            kind: 'game_start',
+            message: `Partida iniciada · ${game.players.length} jugadores`,
+            meta: { playerCount: game.players.length },
+          });
           set({
             game,
             past: [],
             panelEffect: null,
             globalEffect: null,
-            gameStartedAt: Date.now(),
+            gameStartedAt: startedAt,
           });
           return game;
         },
@@ -233,13 +277,19 @@ export const useGameStore = create<GameStore>()(
         restartGame: () => {
           const { game } = get();
           if (!game) return;
-          const fresh = createGameFromSetup(game.setup);
+          const startedAt = Date.now();
+          let fresh = createGameFromSetup(game.setup);
+          fresh = normalizeGameState(fresh, startedAt);
+          fresh = appendEvent(fresh, {
+            kind: 'game_start',
+            message: 'Partida reiniciada',
+          });
           set({
             game: fresh,
             past: [],
             panelEffect: null,
             globalEffect: null,
-            gameStartedAt: Date.now(),
+            gameStartedAt: startedAt,
           });
         },
 
@@ -263,21 +313,46 @@ export const useGameStore = create<GameStore>()(
         canUndo: () => get().past.length > 0,
 
         adjustPlayerLife: (playerId, delta) => {
+          const { game } = get();
+          if (!game) return;
           const kind = effectKindForLifeDelta(delta);
           mutate((g) => adjustLife(g, playerId, delta), {
             panelEffect: kind ? { playerId, kind } : null,
+            event: {
+              kind: 'life_change',
+              playerId,
+              amount: delta,
+              message: `${playerName(game, playerId)} ${delta > 0 ? '+' : ''}${delta} vida`,
+            },
           });
         },
 
         dealCommanderDamage: (targetId, sourceId, amount) => {
+          const { game } = get();
+          if (!game || amount === 0) return;
           mutate((g) => applyCommanderDamage(g, targetId, sourceId, amount), {
             panelEffect: { playerId: targetId, kind: 'commander' },
+            event: {
+              kind: 'commander_damage',
+              targetId,
+              sourceId,
+              amount,
+              message: `${playerName(game, sourceId)} → ${playerName(game, targetId)}: ${amount} daño de comandante`,
+            },
           });
         },
 
         adjustPlayerPoison: (playerId, delta) => {
+          const { game } = get();
+          if (!game || delta === 0) return;
           mutate((g) => adjustPoison(g, playerId, delta), {
             panelEffect: { playerId, kind: 'poison' },
+            event: {
+              kind: 'poison_change',
+              playerId,
+              amount: delta,
+              message: `${playerName(game, playerId)} ${delta > 0 ? '+' : ''}${delta} veneno`,
+            },
           });
         },
 
@@ -296,23 +371,51 @@ export const useGameStore = create<GameStore>()(
         },
 
         markEliminated: (playerId) => {
+          const { game } = get();
+          if (!game) return;
           mutate((g) => eliminatePlayer(g, playerId), {
             panelEffect: { playerId, kind: 'elimination' },
+            event: {
+              kind: 'elimination',
+              playerId,
+              message: `${playerName(game, playerId)} eliminado manualmente`,
+            },
           });
         },
 
         markRevived: (playerId) => {
+          const { game } = get();
+          if (!game) return;
           mutate((g) => revivePlayer(g, playerId), {
             panelEffect: { playerId, kind: 'revive' },
+            event: {
+              kind: 'revive',
+              playerId,
+              message: `${playerName(game, playerId)} revivido`,
+            },
           });
         },
 
         applyDamageAll: (amount) => {
-          mutate((g) => damageAll(g, amount), { globalEffect: 'groupDamage' });
+          mutate((g) => damageAll(g, amount), {
+            globalEffect: 'groupDamage',
+            event: {
+              kind: 'group_damage',
+              amount,
+              message: `−${amount} vida a todos`,
+            },
+          });
         },
 
         applyHealAll: (amount) => {
-          mutate((g) => healAll(g, amount), { globalEffect: 'groupHeal' });
+          mutate((g) => healAll(g, amount), {
+            globalEffect: 'groupHeal',
+            event: {
+              kind: 'group_heal',
+              amount,
+              message: `+${amount} vida a todos`,
+            },
+          });
         },
 
         applySetAllLife: (life) => {
@@ -329,6 +432,16 @@ export const useGameStore = create<GameStore>()(
 
         resolveCombat: ({ sourceId, targetId, amount, type }) => {
           if (amount <= 0) return;
+          const { game } = get();
+          if (!game) return;
+
+          const typeLabels: Record<CombatDamageType, string> = {
+            normal: 'daño',
+            heal: 'curación',
+            commander: 'comandante',
+            infect: 'infectar',
+            lifelink: 'vínculo vital',
+          };
 
           mutate(
             (g) => {
@@ -359,8 +472,31 @@ export const useGameStore = create<GameStore>()(
                 playerId: targetId,
                 kind: type === 'infect' ? 'poison' : type === 'commander' ? 'commander' : 'damage',
               },
+              event: {
+                kind: 'combat_resolved',
+                sourceId,
+                targetId,
+                amount,
+                message: `${playerName(game, sourceId)} → ${playerName(game, targetId)}: ${amount} ${typeLabels[type]}`,
+                meta: { combatType: type },
+              },
             },
           );
+        },
+
+        passTurn: () => {
+          mutate((g) => passTurnEngine(g));
+        },
+
+        addGameNote: (text) => {
+          const trimmed = text.trim();
+          if (!trimmed) return;
+          mutate((g) => g, {
+            event: {
+              kind: 'note',
+              message: trimmed,
+            },
+          });
         },
 
         handlePlayerAction: (playerId, actionId) => {
@@ -412,6 +548,11 @@ export const useGameStore = create<GameStore>()(
         past: s.past,
         gameStartedAt: s.gameStartedAt,
       }),
+      onRehydrateStorage: () => (state) => {
+        if (state?.game) {
+          state.game = normalizeGameState(state.game, state.gameStartedAt ?? undefined);
+        }
+      },
     },
   ),
 );

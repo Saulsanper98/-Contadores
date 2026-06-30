@@ -23,6 +23,7 @@ type PlayerPanelProps = {
   rotation: number;
   lifeFontSize: number;
   isMonarch: boolean;
+  isActive?: boolean;
   effectId?: number;
   effectKind?: EffectKind | null;
   reducedMotion?: boolean;
@@ -43,6 +44,7 @@ export function PlayerPanel({
   rotation,
   lifeFontSize,
   isMonarch,
+  isActive,
   effectId = 0,
   effectKind = null,
   reducedMotion,
@@ -98,6 +100,7 @@ export function PlayerPanel({
         disabled && styles.eliminated,
         combatHighlight === 'target' && styles.highlightTarget,
         combatHighlight === 'source' && styles.highlightSource,
+        isActive && styles.activePlayer,
       ]}
       onLayout={reportBounds}>
       <PanelEffectWrapper
@@ -232,6 +235,15 @@ const styles = StyleSheet.create({
   highlightSource: {
     borderWidth: 2,
     borderColor: palette.accent,
+  },
+  activePlayer: {
+    borderWidth: 2,
+    borderColor: palette.accentSecondary,
+    shadowColor: palette.accentSecondary,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.45,
+    shadowRadius: 12,
+    elevation: 8,
   },
   eliminated: {
     opacity: opacity.muted,
