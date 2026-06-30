@@ -19,9 +19,9 @@ describe('combatHitTest', () => {
     expect(findPanelAtPoint(bounds, 50, 50, 'a')).toBeNull();
   });
 
-  it('starts combat drag from center after min distance', () => {
-    expect(shouldBeginCombatDrag(0, 8)).toBe(false);
-    expect(shouldBeginCombatDrag(0, 20)).toBe(true);
+  it('starts combat drag after min distance from anywhere on panel', () => {
+    expect(shouldBeginCombatDrag(0, 7)).toBe(false);
+    expect(shouldBeginCombatDrag(0, 8)).toBe(true);
     expect(shouldBeginCombatDrag(15, 15)).toBe(true);
   });
 

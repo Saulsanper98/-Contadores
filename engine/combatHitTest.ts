@@ -51,7 +51,7 @@ export function getPanelCenter(bounds: PanelBounds[], playerId: string) {
 export function shouldBeginCombatDrag(
   translationX: number,
   translationY: number,
-  minDistance = 10,
+  minDistance = 8,
 ): boolean {
   return Math.hypot(translationX, translationY) >= minDistance;
 }

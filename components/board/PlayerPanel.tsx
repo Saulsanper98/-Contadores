@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -15,8 +15,7 @@ import {
   isPoisonDanger,
 } from '@/engine';
 import type { PlayerGameState } from '@/engine/types';
-import { useCombatPanGestures } from '@/hooks/useCombatPanGestures';
-import { useLifeStripGestures } from '@/hooks/useLifeStripGestures';
+import { usePlayerPanelGestures } from '@/hooks/usePlayerPanelGestures';
 import { MANA_OPTIONS } from '@/store/gameStore';
 import { getManaPanelTheme, opacity, palette, radius, spacing, typography } from '@/theme';
 
@@ -69,6 +68,7 @@ export function PlayerPanel({
   onAttackDragEnd,
 }: PlayerPanelProps) {
   const viewRef = useRef<View>(null);
+  const [panelWidth, setPanelWidth] = useState(0);
   const disabled = player.isEliminated;
   const theme = getManaPanelTheme(player.manaIdentity);
   const manaSymbol =
@@ -85,20 +85,10 @@ export function PlayerPanel({
     [disabled, onLifeChange, player.id],
   );
 
-  const leftGestures = useLifeStripGestures({
+  const { gesture, leftFloatingDelta, rightFloatingDelta } = usePlayerPanelGestures({
+    panelWidth,
     disabled,
-    deltaSign: -1,
     onCommitDelta,
-  });
-
-  const rightGestures = useLifeStripGestures({
-    disabled,
-    deltaSign: 1,
-    onCommitDelta,
-  });
-
-  const { gesture: combatGesture } = useCombatPanGestures({
-    disabled,
     onTryCombatStart,
     onAttackDragMove,
     onAttackDragEnd,
@@ -150,22 +140,20 @@ export function PlayerPanel({
           <Text style={[styles.menuIcon, { color: theme.mutedColor }]}>⋯</Text>
         </Pressable>
 
-        <View
-          style={[
-            styles.touchRotator,
-            { transform: [{ rotate: `${rotation}deg` }] },
-          ]}>
-          <View style={styles.touchRow}>
-            <GestureDetector gesture={leftGestures.gesture}>
+        <GestureDetector gesture={gesture}>
+          <View
+            style={[
+              styles.touchRotator,
+              { transform: [{ rotate: `${rotation}deg` }] },
+            ]}
+            onLayout={(e) => setPanelWidth(e.nativeEvent.layout.width)}>
+            <View style={styles.touchRow} collapsable={false}>
               <View style={styles.stripSlot}>
                 <PanelLifeStrip side="minus" accentColor={palette.damage} />
-                <FloatingDelta delta={leftGestures.floatingDelta} />
+                <FloatingDelta delta={leftFloatingDelta} />
               </View>
-            </GestureDetector>
 
-            <GestureDetector gesture={combatGesture}>
-              <View style={styles.combatZone}>
-                <View style={styles.combatFrame} pointerEvents="none" />
+              <View style={styles.combatZone} pointerEvents="none">
                 <View style={styles.combatContent}>
                   {isMonarch ? (
                     <View style={styles.crownWrap}>
@@ -251,16 +239,14 @@ export function PlayerPanel({
                   ) : null}
                 </View>
               </View>
-            </GestureDetector>
 
-            <GestureDetector gesture={rightGestures.gesture}>
               <View style={styles.stripSlot}>
                 <PanelLifeStrip side="plus" accentColor={palette.heal} />
-                <FloatingDelta delta={rightGestures.floatingDelta} />
+                <FloatingDelta delta={rightFloatingDelta} />
               </View>
-            </GestureDetector>
+            </View>
           </View>
-        </View>
+        </GestureDetector>
       </PanelEffectWrapper>
     </View>
   );
@@ -343,13 +329,6 @@ const styles = StyleSheet.create({
     position: 'relative',
     borderRadius: radius.md,
     overflow: 'hidden',
-  },
-  combatFrame: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    borderStyle: 'dashed',
   },
   combatContent: {
     flex: 1,
