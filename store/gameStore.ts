@@ -1,4 +1,4 @@
-import { createMMKV } from 'react-native-mmkv';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
@@ -11,14 +11,6 @@ import {
   resizePlayers,
 } from '@/engine/gameEngine';
 import type { GameSetup, GameState, GenericCounterDef, ManaIdentity, PlayerSetup } from '@/engine/types';
-
-const storage = createMMKV({ id: 'commander-counter' });
-
-const mmkvStorage = {
-  getItem: (name: string) => storage.getString(name) ?? null,
-  setItem: (name: string, value: string) => storage.set(name, value),
-  removeItem: (name: string) => storage.remove(name),
-};
 
 interface SetupStore {
   setup: GameSetup;
@@ -96,7 +88,7 @@ export const useSetupStore = create<SetupStore>()(
     }),
     {
       name: 'commander-setup',
-      storage: createJSONStorage(() => mmkvStorage),
+      storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({ setup: state.setup }),
     },
   ),
