@@ -8,6 +8,9 @@ import {
   type PanelEffect,
   effectKindForLifeDelta,
   nextEffectId,
+  combatPanelEffects,
+  lifePanelEffect,
+  type PanelEffectInput,
 } from '@/animations/effects';
 import { triggerHaptic } from '@/animations/haptics';
 import { playGameSound, soundForEffect } from '@/animations/sounds';
@@ -64,8 +67,10 @@ export type GameToast = {
 };
 
 type MutateOptions = {
-  panelEffect?: { playerId: string; kind: EffectKind; magnitude?: number } | null;
+  panelEffect?: PanelEffectInput | null;
+  panelEffects?: PanelEffectInput[];
   globalEffect?: GlobalEffect['kind'] | null;
+  globalMagnitude?: number;
   skipHistory?: boolean;
   event?: {
     kind: GameEventKind;
@@ -163,7 +168,7 @@ interface GameStore {
   game: GameState | null;
   past: GameState[];
   toast: GameToast | null;
-  panelEffect: PanelEffect | null;
+  panelEffects: PanelEffect[];
   globalEffect: GlobalEffect | null;
   gameStartedAt: number | null;
   startGame: (setup: GameSetup) => GameState;
@@ -171,7 +176,7 @@ interface GameStore {
   restartGame: () => void;
   showToast: (title: string, subtitle?: string) => void;
   clearToast: () => void;
-  clearPanelEffect: () => void;
+  clearPanelEffect: (playerId?: string) => void;
   clearGlobalEffect: () => void;
   undo: () => boolean;
   canUndo: () => boolean;
@@ -258,43 +263,64 @@ export const useGameStore = create<GameStore>()(
 
         const newPast = options.skipHistory ? past : pushSnapshot(past, game);
 
-        let panelEffect = options.panelEffect
-          ? { ...options.panelEffect, id: nextEffectId(), magnitude: options.panelEffect.magnitude }
-          : null;
+        let panelEffects: PanelEffect[] = [];
+        if (options.panelEffects?.length) {
+          panelEffects = options.panelEffects.map((effect) => ({
+            ...effect,
+            id: nextEffectId(),
+            magnitude: effect.magnitude ?? 1,
+          }));
+        } else if (options.panelEffect) {
+          panelEffects = [
+            {
+              ...options.panelEffect,
+              id: nextEffectId(),
+              magnitude: options.panelEffect.magnitude ?? 1,
+            },
+          ];
+        }
 
         if (eliminations.length > 0 && eliminations[0]) {
-          panelEffect = {
-            playerId: eliminations[0],
-            kind: 'elimination',
-            id: nextEffectId(),
-            magnitude: 1,
-          };
+          panelEffects = [
+            {
+              playerId: eliminations[0],
+              kind: 'elimination',
+              id: nextEffectId(),
+              magnitude: 1,
+            },
+          ];
         }
 
         const globalEffect = options.globalEffect
-          ? { kind: options.globalEffect, id: nextEffectId() }
+          ? {
+              kind: options.globalEffect,
+              id: nextEffectId(),
+              magnitude: options.globalMagnitude ?? 1,
+            }
           : null;
 
-        if (panelEffect) {
-          if (useSettingsStore.getState().hapticsEnabled) void triggerHaptic(panelEffect.kind);
-          const snd = soundForEffect(panelEffect.kind);
+        if (panelEffects.length > 0) {
+          const lead = panelEffects[0];
+          if (useSettingsStore.getState().hapticsEnabled) {
+            for (const fx of panelEffects) void triggerHaptic(fx.kind);
+          }
+          const snd = lead ? soundForEffect(lead.kind) : null;
           if (snd) void playGameSound(snd);
-        }
-        if (globalEffect && useSettingsStore.getState().hapticsEnabled) {
+        } else if (globalEffect && useSettingsStore.getState().hapticsEnabled) {
           void triggerHaptic(globalEffect.kind === 'groupHeal' ? 'groupHeal' : 'groupDamage');
         }
 
         const lastEvent = withEvents.events[withEvents.events.length - 1];
         if (lastEvent) void maybeEnqueueSync(withEvents, lastEvent);
 
-        set({ game: withEvents, past: newPast, panelEffect, globalEffect });
+        set({ game: withEvents, past: newPast, panelEffects, globalEffect });
       };
 
       return {
         game: null,
         past: [],
         toast: null,
-        panelEffect: null,
+        panelEffects: [],
         globalEffect: null,
         gameStartedAt: null,
 
@@ -310,7 +336,7 @@ export const useGameStore = create<GameStore>()(
           set({
             game,
             past: [],
-            panelEffect: null,
+            panelEffects: [],
             globalEffect: null,
             gameStartedAt: startedAt,
           });
@@ -323,7 +349,7 @@ export const useGameStore = create<GameStore>()(
             game: null,
             past: [],
             toast: null,
-            panelEffect: null,
+            panelEffects: [],
             globalEffect: null,
             gameStartedAt: null,
           }),
@@ -341,7 +367,7 @@ export const useGameStore = create<GameStore>()(
           set({
             game: fresh,
             past: [],
-            panelEffect: null,
+            panelEffects: [],
             globalEffect: null,
             gameStartedAt: startedAt,
           });
@@ -353,14 +379,19 @@ export const useGameStore = create<GameStore>()(
         },
 
         clearToast: () => set({ toast: null }),
-        clearPanelEffect: () => set({ panelEffect: null }),
+        clearPanelEffect: (playerId) =>
+          set((state) => ({
+            panelEffects: playerId
+              ? state.panelEffects.filter((fx) => fx.playerId !== playerId)
+              : [],
+          })),
         clearGlobalEffect: () => set({ globalEffect: null }),
 
         undo: () => {
           const { past } = get();
           const { state, stack } = popSnapshot(past);
           if (!state) return false;
-          set({ game: state, past: stack, panelEffect: null, globalEffect: null });
+          set({ game: state, past: stack, panelEffects: [], globalEffect: null });
           return true;
         },
 
@@ -418,7 +449,7 @@ export const useGameStore = create<GameStore>()(
 
         setPlayerMonarch: (playerId) => {
           mutate((g) => setMonarch(g, playerId), {
-            panelEffect: { playerId, kind: 'monarch' },
+            panelEffect: { playerId, kind: 'monarch', magnitude: 1 },
           });
         },
 
@@ -428,7 +459,7 @@ export const useGameStore = create<GameStore>()(
 
         markEliminated: (playerId) => {
           mutate((g) => eliminatePlayer(g, playerId), {
-            panelEffect: { playerId, kind: 'elimination' },
+            panelEffect: { playerId, kind: 'elimination', magnitude: 1 },
           });
         },
 
@@ -436,7 +467,7 @@ export const useGameStore = create<GameStore>()(
           const { game } = get();
           if (!game) return;
           mutate((g) => revivePlayer(g, playerId), {
-            panelEffect: { playerId, kind: 'revive' },
+            panelEffect: { playerId, kind: 'revive', magnitude: 1 },
             event: {
               kind: 'revive',
               playerId,
@@ -446,8 +477,12 @@ export const useGameStore = create<GameStore>()(
         },
 
         applyDamageAll: (amount) => {
+          const { game } = get();
+          if (!game) return;
           mutate((g) => damageAll(g, amount), {
-            globalEffect: 'groupDamage',
+            panelEffects: game.players
+              .filter((p) => !p.isEliminated)
+              .map((p) => ({ playerId: p.id, kind: 'damage' as const, magnitude: amount })),
             event: {
               kind: 'group_damage',
               amount,
@@ -457,8 +492,12 @@ export const useGameStore = create<GameStore>()(
         },
 
         applyHealAll: (amount) => {
+          const { game } = get();
+          if (!game) return;
           mutate((g) => healAll(g, amount), {
-            globalEffect: 'groupHeal',
+            panelEffects: game.players
+              .filter((p) => !p.isEliminated)
+              .map((p) => ({ playerId: p.id, kind: 'heal' as const, magnitude: amount })),
             event: {
               kind: 'group_heal',
               amount,
@@ -468,15 +507,43 @@ export const useGameStore = create<GameStore>()(
         },
 
         applySetAllLife: (life) => {
-          mutate((g) => setAllLife(g, life), { globalEffect: 'groupSet' });
+          const { game } = get();
+          if (!game) return;
+          mutate((g) => setAllLife(g, life), {
+            panelEffects: game.players
+              .map((p) => lifePanelEffect(p.id, life - p.life))
+              .filter((fx): fx is PanelEffectInput => fx !== null),
+          });
         },
 
         damageOpponents: (sourceId, amount) => {
-          mutate((g) => damageOthers(g, sourceId, amount), { globalEffect: 'groupDamage' });
+          const { game } = get();
+          if (!game) return;
+          mutate((g) => damageOthers(g, sourceId, amount), {
+            panelEffects: game.players
+              .filter((p) => p.id !== sourceId && !p.isEliminated)
+              .map((p) => ({ playerId: p.id, kind: 'damage' as const, magnitude: amount })),
+          });
         },
 
         drainOpponents: (sourceId, amount) => {
-          mutate((g) => drainOthers(g, sourceId, amount), { globalEffect: 'groupDamage' });
+          const { game } = get();
+          if (!game) return;
+          const opponents = game.players.filter((p) => p.id !== sourceId && !p.isEliminated);
+          mutate((g) => drainOthers(g, sourceId, amount), {
+            panelEffects: [
+              ...opponents.map((p) => ({
+                playerId: p.id,
+                kind: 'damage' as const,
+                magnitude: amount,
+              })),
+              {
+                playerId: sourceId,
+                kind: 'heal' as const,
+                magnitude: amount * opponents.length,
+              },
+            ],
+          });
         },
 
         resolveCombat: ({ sourceId, targetId, amount, type }) => {
@@ -517,11 +584,7 @@ export const useGameStore = create<GameStore>()(
               return next;
             },
             {
-              panelEffect: {
-                playerId: targetId,
-                kind: type === 'infect' ? 'poison' : type === 'commander' ? 'commander' : 'damage',
-                magnitude: Math.abs(amount),
-              },
+              panelEffects: combatPanelEffects(sourceId, targetId, amount, type),
               event: {
                 kind: 'combat_resolved',
                 sourceId,

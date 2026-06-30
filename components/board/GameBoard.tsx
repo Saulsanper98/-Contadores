@@ -16,13 +16,13 @@ import { palette, spacing, typography } from '@/theme';
 
 type GameBoardProps = {
   game: GameState;
-  panelEffect: PanelEffect | null;
+  panelEffects: PanelEffect[];
   globalEffect: GlobalEffect | null;
   reducedMotion?: boolean;
   onLifeChange: (playerId: string, delta: number) => void;
   onOpenActions: (playerId: string) => void;
   onCombatReady: (sourceId: string, targetId: string) => void;
-  onClearPanelEffect: () => void;
+  onClearPanelEffect: (playerId: string) => void;
   onClearGlobalEffect: () => void;
 };
 
@@ -36,7 +36,7 @@ const PANEL_GAP = 3;
 
 export function GameBoard({
   game,
-  panelEffect,
+  panelEffects,
   globalEffect,
   reducedMotion,
   onLifeChange,
@@ -141,16 +141,26 @@ export function GameBoard({
     playerId: string,
     seatIndex: number,
   ): { id: number; kind: EffectKind | null; magnitude: number } => {
-    if (panelEffect?.playerId === playerId) {
+    const match = panelEffects.find((fx) => fx.playerId === playerId);
+    if (match) {
       return {
-        id: panelEffect.id,
-        kind: panelEffect.kind,
-        magnitude: panelEffect.magnitude ?? 1,
+        id: match.id,
+        kind: match.kind,
+        magnitude: match.magnitude ?? 1,
       };
     }
     if (globalEffect) {
-      const kind = globalEffect.kind === 'groupHeal' ? 'groupHeal' : 'groupDamage';
-      return { id: globalEffect.id * 100 + seatIndex, kind, magnitude: 1 };
+      const kind =
+        globalEffect.kind === 'groupHeal'
+          ? 'groupHeal'
+          : globalEffect.kind === 'groupSet'
+            ? 'heal'
+            : 'groupDamage';
+      return {
+        id: globalEffect.id * 100 + seatIndex,
+        kind,
+        magnitude: globalEffect.magnitude ?? 1,
+      };
     }
     return { id: 0, kind: null, magnitude: 1 };
   };
@@ -197,7 +207,9 @@ export function GameBoard({
               onAttackDragMove={(x, y) => handleAttackDragMove(player.id, x, y)}
               onAttackDragEnd={(x, y) => handleAttackDragEnd(player.id, x, y)}
               onEffectEnd={() => {
-                if (panelEffect?.playerId === player.id) onClearPanelEffect();
+                if (panelEffects.some((fx) => fx.playerId === player.id)) {
+                  onClearPanelEffect(player.id);
+                }
               }}
               onLifeChange={handleLifeChange}
               onOpenActions={onOpenActions}

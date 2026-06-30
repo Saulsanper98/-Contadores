@@ -37,7 +37,7 @@ export default function GameScreen() {
   const game = useGameStore((state) => state.game);
   const past = useGameStore((state) => state.past);
   const toast = useGameStore((state) => state.toast);
-  const panelEffect = useGameStore((state) => state.panelEffect);
+  const panelEffects = useGameStore((state) => state.panelEffects);
   const globalEffect = useGameStore((state) => state.globalEffect);
   const gameStartedAt = useGameStore((state) => state.gameStartedAt);
 
@@ -175,7 +175,7 @@ export default function GameScreen() {
 
       <GameBoard
         game={game}
-        panelEffect={panelEffect}
+        panelEffects={panelEffects}
         globalEffect={globalEffect}
         reducedMotion={reducedMotion}
         onLifeChange={adjustPlayerLife}

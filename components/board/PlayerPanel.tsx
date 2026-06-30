@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -80,6 +80,22 @@ export function PlayerPanel({
   const poisonWarn = isPoisonDanger(player.poison);
   const cmdWarn = isCommanderDanger(player);
   const hasStats = (player.poison > 0 || maxCmd > 0) && !disabled;
+
+  const effectDelta = useMemo(() => {
+    if (effectId === 0 || !effectKind) return null;
+    switch (effectKind) {
+      case 'heal':
+      case 'groupHeal':
+      case 'revive':
+        return effectMagnitude;
+      case 'damage':
+      case 'commander':
+      case 'groupDamage':
+        return -effectMagnitude;
+      default:
+        return null;
+    }
+  }, [effectId, effectKind, effectMagnitude]);
 
   const onCommitDelta = useCallback(
     (delta: number) => {
@@ -188,6 +204,12 @@ export function PlayerPanel({
                     lowLifeStyle={styles.lifeLow}
                     eliminatedStyle={styles.lifeEliminated}
                   />
+
+                  {effectDelta !== null ? (
+                    <View style={styles.effectDeltaWrap} pointerEvents="none">
+                      <FloatingDelta key={effectId} delta={effectDelta} />
+                    </View>
+                  ) : null}
 
                   <Text style={[styles.seat, { color: theme.mutedColor }]} numberOfLines={1}>
                     {player.commanderName
@@ -311,6 +333,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: spacing.xs,
     gap: 2,
+  },
+  effectDeltaWrap: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 25,
   },
   crownWrap: {
     position: 'absolute',
