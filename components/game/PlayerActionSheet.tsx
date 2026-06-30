@@ -24,6 +24,7 @@ type PlayerActionSheetProps = {
   onCommanderDamage: (targetId: string, sourceId: string, amount: number) => void;
   onPoison: (playerId: string, delta: number) => void;
   onCounter: (playerId: string, counterId: string, delta: number) => void;
+  onMulligan: (playerId: string, delta: number) => void;
   onToast: (title: string, subtitle?: string) => void;
 };
 
@@ -36,6 +37,7 @@ export function PlayerActionSheet({
   onCommanderDamage,
   onPoison,
   onCounter,
+  onMulligan,
   onToast,
 }: PlayerActionSheetProps) {
   const [tab, setTab] = useState<Tab>('actions');
@@ -126,6 +128,15 @@ export function PlayerActionSheet({
       )}
 
       <View style={styles.divider} />
+
+      <Text style={styles.sectionLabel}>Mulligans</Text>
+      <CounterRow
+        label="Mulligans usados"
+        icon="🃏"
+        value={player.mulligans}
+        onDecrement={() => onMulligan(player.id, -1)}
+        onIncrement={() => onMulligan(player.id, 1)}
+      />
 
       <Text style={styles.sectionLabel}>Daño de comandante</Text>
       <Text style={styles.hint}>Oponente atacante</Text>

@@ -10,6 +10,7 @@ import Animated, {
 
 import { ParticleBurst } from '@/components/animations/ParticleBurst';
 import type { EffectKind } from '@/animations/effects';
+import { useSettingsStore } from '@/store/settingsStore';
 import { palette } from '@/theme';
 import { spring } from '@/theme/tokens';
 
@@ -45,6 +46,10 @@ export function PanelEffectWrapper({
 
   useEffect(() => {
     if (!effectKind || effectId === 0) return;
+    if (!useSettingsStore.getState().effectsEnabled) {
+      onEffectEnd?.();
+      return;
+    }
 
     if (reducedMotion) {
       flash.value = withSequence(withTiming(0.35, { duration: 80 }), withTiming(0, { duration: 120 }));

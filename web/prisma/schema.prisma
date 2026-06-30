@@ -1,0 +1,130 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String       @id @default(cuid())
+  email     String       @unique
+  name      String?
+  password  String
+  createdAt DateTime     @default(now())
+  members   Membership[]
+  decks     Deck[]
+  players   GamePlayer[]
+}
+
+model Playgroup {
+  id          String       @id @default(cuid())
+  name        String
+  slug        String       @unique
+  createdAt   DateTime     @default(now())
+  members     Membership[]
+  games       Game[]
+  leagues     League[]
+  scoreRules  ScoreRule[]
+}
+
+model Membership {
+  id          String    @id @default(cuid())
+  userId      String
+  playgroupId String
+  role        String    @default("MEMBER")
+  user        User      @relation(fields: [userId], references: [id])
+  playgroup   Playgroup @relation(fields: [playgroupId], references: [id])
+
+  @@unique([userId, playgroupId])
+}
+
+model Deck {
+  id            String       @id @default(cuid())
+  userId        String
+  name          String
+  commanderName String?
+  colorIdentity String       @default("[]")
+  archidektUrl  String?
+  user          User         @relation(fields: [userId], references: [id])
+  players       GamePlayer[]
+}
+
+model Game {
+  id           String       @id @default(cuid())
+  playgroupId  String?
+  leagueId     String?
+  claimCode    String?      @unique
+  status       String       @default("IN_PROGRESS")
+  winCondition String?
+  startedAt    DateTime     @default(now())
+  endedAt      DateTime?
+  playerCount  Int          @default(4)
+  playgroup    Playgroup?   @relation(fields: [playgroupId], references: [id])
+  league       League?      @relation(fields: [leagueId], references: [id])
+  players      GamePlayer[]
+  events       GameEvent[]
+}
+
+model GamePlayer {
+  id           String      @id @default(cuid())
+  gameId       String
+  seatIndex    Int
+  displayName  String
+  isGuest      Boolean     @default(false)
+  userId       String?
+  deckId       String?
+  mulligans    Int         @default(0)
+  placement    Int?
+  eliminatedBy String?
+  game         Game        @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  user         User?       @relation(fields: [userId], references: [id])
+  deck         Deck?       @relation(fields: [deckId], references: [id])
+}
+
+model GameEvent {
+  id          String   @id @default(cuid())
+  gameId      String
+  at          DateTime @default(now())
+  kind        String
+  playerId    String?
+  targetId    String?
+  sourceId    String?
+  amount      Int?
+  message     String
+  meta        String?
+  syncVersion Int      @default(0)
+  game        Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@index([gameId, at])
+}
+
+model League {
+  id          String   @id @default(cuid())
+  playgroupId String
+  name        String
+  rules       String?
+  playgroup   Playgroup @relation(fields: [playgroupId], references: [id])
+  games       Game[]
+}
+
+model ScoreRule {
+  id          String    @id @default(cuid())
+  playgroupId String
+  key         String
+  points      Int
+  playgroup   Playgroup @relation(fields: [playgroupId], references: [id])
+
+  @@unique([playgroupId, key])
+}
+
+model EloRating {
+  id          String @id @default(cuid())
+  playgroupId String
+  playerName  String
+  rating      Int    @default(1500)
+  games       Int    @default(0)
+
+  @@unique([playgroupId, playerName])
+}

@@ -42,6 +42,7 @@ export default function HomeScreen() {
             variant={game ? 'secondary' : 'primary'}
             onPress={() => router.push('/setup')}
           />
+          <Button label="Ajustes" variant="ghost" onPress={() => router.push('/settings')} />
         </View>
 
         <View style={styles.manaRow}>

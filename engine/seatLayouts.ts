@@ -1,16 +1,11 @@
-/**
- * Seat layout for table-centered phone. Each panel is rotated so the
- * life total faces the player at that physical seat.
- */
+import type { TableLayoutId } from './types';
 
 export interface SeatSlot {
   playerIndex: number;
-  /** Grid position (0-based) */
   row: number;
   col: number;
   rowSpan: number;
   colSpan: number;
-  /** Rotation in degrees applied to the panel content */
   rotation: number;
 }
 
@@ -20,7 +15,24 @@ export interface BoardGrid {
   seats: SeatSlot[];
 }
 
-export function getBoardGrid(playerCount: number): BoardGrid {
+const LAYOUTS: Record<TableLayoutId, (count: number) => BoardGrid> = {
+  center: getCenterLayout,
+  compact: getCompactLayout,
+  classic: getClassicLayout,
+};
+
+export function getBoardGrid(playerCount: number, layoutId: TableLayoutId = 'center'): BoardGrid {
+  const factory = LAYOUTS[layoutId] ?? getCenterLayout;
+  return factory(playerCount);
+}
+
+export const TABLE_LAYOUT_OPTIONS: { id: TableLayoutId; label: string; description: string }[] = [
+  { id: 'center', label: 'Centro de mesa', description: 'Teléfono en el centro, paneles rotados' },
+  { id: 'compact', label: 'Compacto', description: 'Cuadrícula densa, menos espacio' },
+  { id: 'classic', label: 'Clásico', description: 'Rotaciones suaves tipo playmat' },
+];
+
+function getCenterLayout(playerCount: number): BoardGrid {
   switch (playerCount) {
     case 2:
       return {
@@ -31,7 +43,6 @@ export function getBoardGrid(playerCount: number): BoardGrid {
           { playerIndex: 0, row: 1, col: 0, rowSpan: 1, colSpan: 1, rotation: 0 },
         ],
       };
-
     case 3:
       return {
         rows: 2,
@@ -42,7 +53,6 @@ export function getBoardGrid(playerCount: number): BoardGrid {
           { playerIndex: 0, row: 1, col: 0, rowSpan: 1, colSpan: 2, rotation: 0 },
         ],
       };
-
     case 4:
       return {
         rows: 2,
@@ -54,7 +64,6 @@ export function getBoardGrid(playerCount: number): BoardGrid {
           { playerIndex: 1, row: 1, col: 1, rowSpan: 1, colSpan: 1, rotation: 45 },
         ],
       };
-
     case 5:
       return {
         rows: 3,
@@ -67,7 +76,6 @@ export function getBoardGrid(playerCount: number): BoardGrid {
           { playerIndex: 0, row: 2, col: 0, rowSpan: 1, colSpan: 2, rotation: 0 },
         ],
       };
-
     case 6:
       return {
         rows: 3,
@@ -81,8 +89,29 @@ export function getBoardGrid(playerCount: number): BoardGrid {
           { playerIndex: 1, row: 2, col: 1, rowSpan: 1, colSpan: 1, rotation: 45 },
         ],
       };
-
     default:
-      return getBoardGrid(4);
+      return getCenterLayout(4);
   }
+}
+
+function getCompactLayout(playerCount: number): BoardGrid {
+  const base = getCenterLayout(playerCount);
+  return {
+    ...base,
+    seats: base.seats.map((seat) => ({
+      ...seat,
+      rotation: seat.rotation === 180 ? 180 : seat.rotation === 0 ? 0 : 180,
+    })),
+  };
+}
+
+function getClassicLayout(playerCount: number): BoardGrid {
+  const base = getCenterLayout(playerCount);
+  return {
+    ...base,
+    seats: base.seats.map((seat) => ({
+      ...seat,
+      rotation: [0, 90, 180, 270][seat.playerIndex % 4],
+    })),
+  };
 }

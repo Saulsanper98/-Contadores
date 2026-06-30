@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { CounterRow } from '@/components/ui/CounterRow';
 import { Section } from '@/components/ui/Section';
 import { Sheet } from '@/components/ui/Sheet';
 import { Button } from '@/components/ui/Button';
-import { flipCoin, pickRandomIndex, rollD6, rollD20 } from '@/engine/tools';
+import { flipCoin, pickRandomIndex, rollD6, rollD20, rollDN } from '@/engine/tools';
 import type { GameState } from '@/engine/types';
 import { palette, spacing, typography } from '@/theme';
 
@@ -30,6 +30,7 @@ export function GroupToolsSheet({
 }: GroupToolsSheetProps) {
   const [groupAmount, setGroupAmount] = useState(1);
   const [setLifeValue, setSetLifeValue] = useState(game.setup.startingLife);
+  const [diceSides, setDiceSides] = useState(6);
 
   const bump = (setter: (n: number) => void, current: number, delta: number, min = 0, max = 99) => {
     setter(Math.min(max, Math.max(min, current + delta)));
@@ -83,9 +84,20 @@ export function GroupToolsSheet({
       </Section>
 
       <Section title="Herramientas">
+        <CounterRow
+          label="Lados del dado (dN)"
+          value={diceSides}
+          onDecrement={() => bump(setDiceSides, diceSides, -1, 2, 100)}
+          onIncrement={() => bump(setDiceSides, diceSides, 1, 2, 100)}
+        />
         <View style={styles.toolsGrid}>
           <Button label="🎲 D6" variant="secondary" onPress={() => rollAndToast('Dado d6', rollD6())} />
           <Button label="🎲 D20" variant="secondary" onPress={() => rollAndToast('Dado d20', rollD20())} />
+          <Button
+            label={`🎲 d${diceSides}`}
+            variant="secondary"
+            onPress={() => rollAndToast(`Dado d${diceSides}`, rollDN(diceSides))}
+          />
           <Button label="🪙 Moneda" variant="secondary" onPress={() => rollAndToast('Moneda', flipCoin())} />
           <Button label="🎯 Quién empieza" variant="secondary" onPress={randomStarter} />
         </View>

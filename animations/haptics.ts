@@ -2,9 +2,11 @@ import * as Haptics from 'expo-haptics';
 import { Platform } from 'react-native';
 
 import type { EffectKind } from '@/animations/effects';
+import { useSettingsStore } from '@/store/settingsStore';
 
 export async function triggerHaptic(kind: EffectKind): Promise<void> {
   if (Platform.OS === 'web') return;
+  if (!useSettingsStore.getState().hapticsEnabled) return;
 
   switch (kind) {
     case 'damage':

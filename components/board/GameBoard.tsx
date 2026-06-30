@@ -44,7 +44,10 @@ export function GameBoard({
   onClearPanelEffect,
   onClearGlobalEffect,
 }: GameBoardProps) {
-  const grid = useMemo(() => getBoardGrid(game.players.length), [game.players.length]);
+  const grid = useMemo(
+    () => getBoardGrid(game.players.length, game.setup.tableLayout ?? 'center'),
+    [game.players.length, game.setup.tableLayout],
+  );
   const boardRef = useRef<View>(null);
   const panelBoundsRef = useRef<PanelBounds[]>([]);
   const [combatDrag, setCombatDrag] = useState<CombatDragState>(null);

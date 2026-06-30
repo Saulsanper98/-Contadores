@@ -32,6 +32,11 @@ const EVENT_ICONS: Record<string, string> = {
   group_heal: '💚',
   note: '📝',
   dice_roll: '🎲',
+  knockout: '💀',
+  first_blood: '🩸',
+  mulligan: '🃏',
+  win_condition: '🏆',
+  game_end: '🏆',
   action: '⚡',
 };
 

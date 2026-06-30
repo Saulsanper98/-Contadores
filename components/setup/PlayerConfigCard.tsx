@@ -1,15 +1,18 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { ManaIdentityPicker } from '@/components/setup/ManaIdentityPicker';
 import { TextField } from '@/components/ui/TextField';
-import { getManaPanelTheme, palette, radius, spacing, typography } from '@/theme';
+import { getManaPanelTheme } from '@/theme/manaTheme';
+import { palette, radius, spacing, typography } from '@/theme';
 import type { PlayerSetup } from '@/engine/types';
 
 type PlayerConfigCardProps = {
   index: number;
   player: PlayerSetup;
-  onChange: (patch: Partial<Pick<PlayerSetup, 'name' | 'manaIdentity'>>) => void;
+  onChange: (
+    patch: Partial<Pick<PlayerSetup, 'name' | 'manaIdentity' | 'isGuest' | 'commanderName' | 'deckTheme'>>,
+  ) => void;
 };
 
 export function PlayerConfigCard({ index, player, onChange }: PlayerConfigCardProps) {
@@ -26,7 +29,10 @@ export function PlayerConfigCard({ index, player, onChange }: PlayerConfigCardPr
       <View style={styles.inner}>
         <View style={styles.header}>
           <Text style={styles.seat}>Jugador {index + 1}</Text>
-          <View style={[styles.dot, { backgroundColor: theme.accent }]} />
+          <View style={styles.headerRight}>
+            {player.isGuest ? <Text style={styles.guestBadge}>INVITADO</Text> : null}
+            <View style={[styles.dot, { backgroundColor: theme.accent }]} />
+          </View>
         </View>
 
         <TextField
@@ -35,6 +41,21 @@ export function PlayerConfigCard({ index, player, onChange }: PlayerConfigCardPr
           onChangeText={(name) => onChange({ name })}
           placeholder={`Jugador ${index + 1}`}
         />
+
+        <TextField
+          label="Comandante (opcional)"
+          value={player.commanderName ?? ''}
+          onChangeText={(commanderName) => onChange({ commanderName })}
+          placeholder="Nombre del comandante"
+        />
+
+        <View style={styles.guestRow}>
+          <Text style={styles.guestLabel}>Jugador invitado (sin cuenta)</Text>
+          <Switch
+            value={player.isGuest ?? false}
+            onValueChange={(isGuest) => onChange({ isGuest })}
+          />
+        </View>
 
         <View style={styles.identityBlock}>
           <Text style={styles.identityLabel}>Color del mazo</Text>
@@ -56,32 +77,37 @@ const styles = StyleSheet.create({
     backgroundColor: palette.surface,
     overflow: 'hidden',
   },
-  gradientAccent: {
-    height: 4,
-    width: '100%',
-  },
-  inner: {
-    padding: spacing.lg,
-    gap: spacing.md,
-  },
+  gradientAccent: { height: 4, width: '100%' },
+  inner: { padding: spacing.lg, gap: spacing.md },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   seat: {
     fontFamily: typography.fontFamily.sansSemiBold,
     fontSize: typography.fontSize.md,
     color: palette.textPrimary,
   },
-  dot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+  guestBadge: {
+    fontFamily: typography.fontFamily.sansSemiBold,
+    fontSize: 9,
+    letterSpacing: 1,
+    color: palette.warning,
   },
-  identityBlock: {
-    gap: spacing.sm,
+  dot: { width: 10, height: 10, borderRadius: 5 },
+  guestRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
+  guestLabel: {
+    fontFamily: typography.fontFamily.sans,
+    fontSize: typography.fontSize.sm,
+    color: palette.textSecondary,
+  },
+  identityBlock: { gap: spacing.sm },
   identityLabel: {
     fontFamily: typography.fontFamily.sansMedium,
     fontSize: typography.fontSize.xs,

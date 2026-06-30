@@ -1,4 +1,5 @@
 import { createInitialTurnState } from './turns';
+import { createInitialMeta, generateClaimCode } from './meta';
 import type { GameState } from './types';
 import { appendEvent } from './events';
 
@@ -14,9 +15,21 @@ export function normalizeGameState(state: GameState, fallbackStartedAt?: number)
     );
 
   const events = state.events ?? [];
+  const meta = state.meta ?? createInitialMeta();
 
   return {
     ...state,
+    setup: {
+      ...state.setup,
+      tableLayout: state.setup.tableLayout ?? 'center',
+    },
+    players: state.players.map((p) => ({
+      ...p,
+      eliminatedBy: p.eliminatedBy ?? null,
+      mulligans: p.mulligans ?? 0,
+      isGuest: p.isGuest ?? false,
+      hasReceivedDamage: p.hasReceivedDamage ?? false,
+    })),
     turn: {
       ...turn,
       gameStartedAt: turn.gameStartedAt ?? startedAt,
@@ -26,6 +39,11 @@ export function normalizeGameState(state: GameState, fallbackStartedAt?: number)
       },
     },
     events,
+    meta: {
+      ...createInitialMeta(),
+      ...meta,
+      claimCode: meta.claimCode ?? generateClaimCode(),
+    },
   };
 }
 

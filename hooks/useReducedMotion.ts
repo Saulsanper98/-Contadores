@@ -1,14 +1,18 @@
 import { useEffect, useState } from 'react';
 import { AccessibilityInfo } from 'react-native';
 
+import { useSettingsStore } from '@/store/settingsStore';
+
 export function useReducedMotion(): boolean {
-  const [reduced, setReduced] = useState(false);
+  const override = useSettingsStore((s) => s.reducedMotionOverride);
+  const [systemReduced, setSystemReduced] = useState(false);
 
   useEffect(() => {
-    AccessibilityInfo.isReduceMotionEnabled().then(setReduced);
-    const sub = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduced);
+    AccessibilityInfo.isReduceMotionEnabled().then(setSystemReduced);
+    const sub = AccessibilityInfo.addEventListener('reduceMotionChanged', setSystemReduced);
     return () => sub.remove();
   }, []);
 
-  return reduced;
+  if (override !== null) return override;
+  return systemReduced;
 }

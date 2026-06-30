@@ -10,6 +10,7 @@ import {
   nextEffectId,
 } from '@/animations/effects';
 import { triggerHaptic } from '@/animations/haptics';
+import { playGameSound, soundForEffect } from '@/animations/sounds';
 import {
   addGenericCounterDef,
   adjustGenericCounter,
@@ -35,7 +36,15 @@ import {
   normalizeGameState,
   passTurn as passTurnEngine,
   playerName,
+  adjustMulligans as adjustMulligansEngine,
+  checkAutoWinner,
+  endGame,
+  markPlayerDamaged,
+  recordKnockout,
 } from '@/engine';
+import type { TableLayoutId, WinCondition } from '@/engine/types';
+import { enqueueSyncEvent, registerRemoteGame } from '@/sync/syncQueue';
+import { useSettingsStore } from '@/store/settingsStore';
 import type { CombatDamageType } from '@/data/combatTypes';
 import type { PlayerActionId } from '@/data/playerActions';
 import { PRESET_COUNTERS, presetToCounter } from '@/data/presetCounters';
@@ -73,7 +82,11 @@ interface SetupStore {
   setup: GameSetup;
   setPlayerCount: (count: number) => void;
   setStartingLife: (life: number) => void;
-  updatePlayer: (playerId: string, patch: Partial<Pick<PlayerSetup, 'name' | 'manaIdentity'>>) => void;
+  updatePlayer: (
+    playerId: string,
+    patch: Partial<Pick<PlayerSetup, 'name' | 'manaIdentity' | 'isGuest' | 'commanderName' | 'deckTheme'>>,
+  ) => void;
+  setTableLayout: (layout: TableLayoutId) => void;
   addGenericCounter: (name: string, icon: string) => void;
   removeGenericCounter: (counterId: string) => void;
   togglePresetCounter: (presetId: string, enabled: boolean) => void;
@@ -99,6 +112,9 @@ export const useSetupStore = create<SetupStore>()(
         set((state) => ({
           setup: { ...state.setup, startingLife: Math.max(1, life) },
         }));
+      },
+      setTableLayout: (tableLayout) => {
+        set((state) => ({ setup: { ...state.setup, tableLayout } }));
       },
       updatePlayer: (playerId, patch) => {
         set((state) => ({
@@ -181,6 +197,9 @@ interface GameStore {
   handlePlayerAction: (playerId: string, actionId: PlayerActionId) => void;
   passTurn: () => void;
   addGameNote: (text: string) => void;
+  adjustMulligans: (playerId: string, delta: number) => void;
+  declareWinner: (winnerId: string, winCondition: WinCondition) => void;
+  syncGameToCloud: () => Promise<void>;
 }
 
 let toastCounter = 0;
@@ -189,6 +208,19 @@ function findNewEliminations(before: GameState, after: GameState): string[] {
   return after.players
     .filter((p) => p.isEliminated && !before.players.find((o) => o.id === p.id)?.isEliminated)
     .map((p) => p.id);
+}
+
+async function maybeEnqueueSync(game: GameState, event: GameState['events'][number]) {
+  const settings = useSettingsStore.getState();
+  if (!settings.syncEnabled || !game.meta.remoteGameId) return;
+  await enqueueSyncEvent({
+    localId: event.id,
+    gameId: game.meta.remoteGameId,
+    claimCode: game.meta.claimCode ?? '',
+    event,
+    createdAt: Date.now(),
+    retries: 0,
+  });
 }
 
 export const useGameStore = create<GameStore>()(
@@ -201,19 +233,28 @@ export const useGameStore = create<GameStore>()(
         const next = updater(game);
         let withEvents = options.event ? appendEvent(next, options.event) : next;
 
-        const eliminations = findNewEliminations(game, withEvents);
-        const skipAutoEliminationLog = options.event?.kind === 'elimination';
-        if (!skipAutoEliminationLog) {
-          for (const playerId of eliminations) {
-            const reason = withEvents.players.find((p) => p.id === playerId)?.eliminationReason;
-            withEvents = appendEvent(withEvents, {
-              kind: 'elimination',
-              playerId,
-              message: `${playerName(withEvents, playerId)} eliminado`,
-              meta: { reason },
-            });
+        if (options.event?.kind === 'life_change' && (options.event.amount ?? 0) < 0 && options.event.playerId) {
+          withEvents = markPlayerDamaged(withEvents, options.event.playerId);
+        }
+        if (options.event?.kind === 'combat_resolved' && options.event.targetId) {
+          const combatType = options.event.meta?.combatType;
+          if (combatType !== 'heal') {
+            withEvents = markPlayerDamaged(withEvents, options.event.targetId);
           }
         }
+        if (options.event?.kind === 'commander_damage' && options.event.targetId) {
+          withEvents = markPlayerDamaged(withEvents, options.event.targetId);
+        }
+
+        const eliminations = findNewEliminations(game, withEvents);
+        for (const playerId of eliminations) {
+          const reason = withEvents.players.find((p) => p.id === playerId)?.eliminationReason;
+          if (!reason) continue;
+          const killerCandidate = options.event?.sourceId;
+          const killerId = killerCandidate && killerCandidate !== playerId ? killerCandidate : undefined;
+          withEvents = recordKnockout(withEvents, playerId, reason, killerId);
+        }
+        withEvents = checkAutoWinner(withEvents);
 
         const newPast = options.skipHistory ? past : pushSnapshot(past, game);
 
@@ -229,10 +270,17 @@ export const useGameStore = create<GameStore>()(
           ? { kind: options.globalEffect, id: nextEffectId() }
           : null;
 
-        if (panelEffect) void triggerHaptic(panelEffect.kind);
-        if (globalEffect) {
+        if (panelEffect) {
+          if (useSettingsStore.getState().hapticsEnabled) void triggerHaptic(panelEffect.kind);
+          const snd = soundForEffect(panelEffect.kind);
+          if (snd) void playGameSound(snd);
+        }
+        if (globalEffect && useSettingsStore.getState().hapticsEnabled) {
           void triggerHaptic(globalEffect.kind === 'groupHeal' ? 'groupHeal' : 'groupDamage');
         }
+
+        const lastEvent = withEvents.events[withEvents.events.length - 1];
+        if (lastEvent) void maybeEnqueueSync(withEvents, lastEvent);
 
         set({ game: withEvents, past: newPast, panelEffect, globalEffect });
       };
@@ -261,6 +309,7 @@ export const useGameStore = create<GameStore>()(
             globalEffect: null,
             gameStartedAt: startedAt,
           });
+          void get().syncGameToCloud();
           return game;
         },
 
@@ -371,15 +420,8 @@ export const useGameStore = create<GameStore>()(
         },
 
         markEliminated: (playerId) => {
-          const { game } = get();
-          if (!game) return;
           mutate((g) => eliminatePlayer(g, playerId), {
             panelEffect: { playerId, kind: 'elimination' },
-            event: {
-              kind: 'elimination',
-              playerId,
-              message: `${playerName(game, playerId)} eliminado manualmente`,
-            },
           });
         },
 
@@ -486,6 +528,7 @@ export const useGameStore = create<GameStore>()(
 
         passTurn: () => {
           mutate((g) => passTurnEngine(g));
+          void playGameSound('turn');
         },
 
         addGameNote: (text) => {
@@ -497,6 +540,65 @@ export const useGameStore = create<GameStore>()(
               message: trimmed,
             },
           });
+        },
+
+        adjustMulligans: (playerId, delta) => {
+          const { game } = get();
+          if (!game || delta === 0) return;
+          mutate(
+            (g) => adjustMulligansEngine(g, playerId, delta),
+            {
+              event: {
+                kind: 'mulligan',
+                playerId,
+                amount: delta,
+                message: `${playerName(game, playerId)} ${delta > 0 ? '+' : ''}${delta} mulligan`,
+              },
+            },
+          );
+        },
+
+        declareWinner: (winnerId, winCondition) => {
+          mutate((g) => endGame(g, winnerId, winCondition), {
+            event: {
+              kind: 'win_condition',
+              playerId: winnerId,
+              message: `Victoria declarada (${winCondition})`,
+              meta: { winCondition },
+            },
+          });
+        },
+
+        syncGameToCloud: async () => {
+          const { game } = get();
+          const settings = useSettingsStore.getState();
+          if (!game || !settings.syncEnabled) return;
+
+          let remoteId = game.meta.remoteGameId;
+          if (!remoteId) {
+            remoteId = await registerRemoteGame(settings.syncApiUrl, {
+              claimCode: game.meta.claimCode ?? '',
+              playerCount: game.players.length,
+              players: game.players.map((p, i) => ({
+                name: p.name,
+                seatIndex: i,
+                isGuest: p.isGuest,
+              })),
+            });
+            if (remoteId) {
+              set({
+                game: {
+                  ...game,
+                  meta: { ...game.meta, remoteGameId: remoteId },
+                },
+              });
+            }
+          }
+
+          if (!remoteId) return;
+          for (const event of game.events.slice(-20)) {
+            await maybeEnqueueSync({ ...game, meta: { ...game.meta, remoteGameId: remoteId } }, event);
+          }
         },
 
         handlePlayerAction: (playerId, actionId) => {

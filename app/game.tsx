@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { useKeepAwake } from 'expo-keep-awake';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -13,6 +13,7 @@ import { GameToastOverlay } from '@/components/game/GameToastOverlay';
 import { GroupToolsSheet } from '@/components/game/GroupToolsSheet';
 import { PlayerActionSheet } from '@/components/game/PlayerActionSheet';
 import { TurnBar } from '@/components/game/TurnBar';
+import { WinGameSheet } from '@/components/game/WinGameSheet';
 import type { PlayerActionId } from '@/data/playerActions';
 import { Button } from '@/components/ui/Button';
 import { Screen } from '@/components/ui/Screen';
@@ -21,6 +22,8 @@ import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useLiveClock } from '@/hooks/useLiveClock';
 import { palette, radius, spacing, typography } from '@/theme';
 import { useGameStore } from '@/store/gameStore';
+import { useSettingsStore } from '@/store/settingsStore';
+import { flushSyncQueue } from '@/sync/syncQueue';
 
 type CombatSession = {
   sourceId: string;
@@ -57,12 +60,26 @@ export default function GameScreen() {
   const handlePlayerAction = useGameStore((state) => state.handlePlayerAction);
   const passTurn = useGameStore((state) => state.passTurn);
   const addGameNote = useGameStore((state) => state.addGameNote);
+  const adjustMulligans = useGameStore((state) => state.adjustMulligans);
+  const declareWinner = useGameStore((state) => state.declareWinner);
+  const syncGameToCloud = useGameStore((state) => state.syncGameToCloud);
+  const syncEnabled = useSettingsStore((s) => s.syncEnabled);
+  const syncApiUrl = useSettingsStore((s) => s.syncApiUrl);
+
+  useEffect(() => {
+    if (!game || !syncEnabled) return;
+    void syncGameToCloud().then(() => {
+      const remoteId = useGameStore.getState().game?.meta.remoteGameId;
+      if (remoteId) void flushSyncQueue(syncApiUrl, remoteId);
+    });
+  }, [game, syncEnabled, syncApiUrl, syncGameToCloud]);
 
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [groupOpen, setGroupOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [combatSession, setCombatSession] = useState<CombatSession | null>(null);
   const [timelineOpen, setTimelineOpen] = useState(false);
+  const [winOpen, setWinOpen] = useState(false);
 
   const turnElapsedMs = useLiveClock(!!game?.turn, game?.turn?.turnStartedAt ?? null);
   const gameElapsedMs = useLiveClock(!!game?.turn, game?.turn?.gameStartedAt ?? null);
@@ -185,6 +202,7 @@ export default function GameScreen() {
         onCommanderDamage={dealCommanderDamage}
         onPoison={adjustPlayerPoison}
         onCounter={adjustPlayerCounter}
+        onMulligan={adjustMulligans}
         onToast={showToast}
       />
 
@@ -218,6 +236,7 @@ export default function GameScreen() {
 
       <GameMenuSheet
         visible={menuOpen}
+        game={game}
         onClose={() => setMenuOpen(false)}
         gameStartedAt={gameStartedAt}
         canUndo={canUndo}
@@ -228,6 +247,18 @@ export default function GameScreen() {
           router.push('/setup');
         }}
         onExit={handleExit}
+        onDeclareWin={() => setWinOpen(true)}
+        onSync={() => {
+          void syncGameToCloud();
+          showToast('Sync', 'Intentando sincronizar con la web…');
+        }}
+      />
+
+      <WinGameSheet
+        visible={winOpen}
+        game={game}
+        onClose={() => setWinOpen(false)}
+        onDeclare={declareWinner}
       />
 
       <GameToastOverlay toast={toast} onDismiss={clearToast} />

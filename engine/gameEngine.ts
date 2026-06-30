@@ -1,6 +1,7 @@
 import { layout } from '@/theme/tokens';
 
 import { applyEliminationCheck } from './elimination';
+import { createInitialMeta, generateClaimCode } from './meta';
 import { createInitialTurnState } from './turns';
 import type {
   GameSetup,
@@ -41,6 +42,7 @@ export function createDefaultSetup(playerCount = 4): GameSetup {
     startingLife: layout.defaultStartingLife,
     players: createDefaultPlayers(count),
     genericCounters: [],
+    tableLayout: 'center',
   };
 }
 
@@ -72,6 +74,7 @@ export function createGameFromSetup(setup: GameSetup): GameState {
     playerCount: clampPlayerCount(setup.playerCount),
     players: resizePlayers(setup.players, setup.playerCount),
     startingLife: Math.max(1, setup.startingLife),
+    tableLayout: setup.tableLayout ?? 'center',
   };
 
   const players: PlayerGameState[] = normalized.players.map((player) => ({
@@ -87,6 +90,12 @@ export function createGameFromSetup(setup: GameSetup): GameState {
     })),
     isEliminated: false,
     eliminationReason: null,
+    eliminatedBy: null,
+    mulligans: 0,
+    isGuest: player.isGuest ?? false,
+    commanderName: player.commanderName,
+    deckTheme: player.deckTheme,
+    hasReceivedDamage: false,
   }));
 
   const startedAt = Date.now();
@@ -97,6 +106,10 @@ export function createGameFromSetup(setup: GameSetup): GameState {
     monarchPlayerId: null,
     turn: createInitialTurnState(players, startedAt),
     events: [],
+    meta: {
+      ...createInitialMeta(),
+      claimCode: generateClaimCode(),
+    },
   };
 }
 

@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { GenericCounterEditor } from '@/components/setup/GenericCounterEditor';
 import { PlayerConfigCard } from '@/components/setup/PlayerConfigCard';
+import { TableLayoutPicker } from '@/components/setup/TableLayoutPicker';
 import { Button } from '@/components/ui/Button';
 import { Screen } from '@/components/ui/Screen';
 import { Section } from '@/components/ui/Section';
@@ -19,6 +20,7 @@ export default function SetupScreen() {
   const setup = useSetupStore((state) => state.setup);
   const setPlayerCount = useSetupStore((state) => state.setPlayerCount);
   const setStartingLife = useSetupStore((state) => state.setStartingLife);
+  const setTableLayout = useSetupStore((state) => state.setTableLayout);
   const updatePlayer = useSetupStore((state) => state.updatePlayer);
   const addGenericCounter = useSetupStore((state) => state.addGenericCounter);
   const removeGenericCounter = useSetupStore((state) => state.removeGenericCounter);
@@ -72,6 +74,9 @@ export default function SetupScreen() {
             onChange={setStartingLife}
           />
         </View>
+
+        <Text style={styles.sectionTitle}>Disposición de mesa</Text>
+        <TableLayoutPicker value={setup.tableLayout ?? 'center'} onChange={setTableLayout} />
 
         <Text style={styles.sectionTitle}>Jugadores</Text>
         {setup.players.map((player, index) => (

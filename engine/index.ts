@@ -2,6 +2,7 @@ export * from './elimination';
 export * from './events';
 export * from './history';
 export * from './gameEngine';
+export * from './meta';
 export * from './migrate';
 export * from './playerStats';
 export * from './seatLayouts';
