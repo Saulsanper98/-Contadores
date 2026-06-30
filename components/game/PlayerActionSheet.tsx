@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { CounterGrid } from '@/components/game/CounterGrid';
 import { PlayerActionGrid } from '@/components/game/PlayerActionGrid';
@@ -10,6 +10,7 @@ import { Sheet } from '@/components/ui/Sheet';
 import { getCommanderDamage, isCommanderDanger, isPoisonDanger } from '@/engine';
 import { flipCoin, rollD6, rollD20 } from '@/engine/tools';
 import type { GameState, PlayerGameState } from '@/engine/types';
+import { useCommanderArt } from '@/hooks/useCommanderArt';
 import { MANA_OPTIONS } from '@/store/gameStore';
 import { layout, palette, radius, spacing, typography } from '@/theme';
 
@@ -42,6 +43,7 @@ export function PlayerActionSheet({
 }: PlayerActionSheetProps) {
   const [tab, setTab] = useState<Tab>('actions');
   const [commanderSourceId, setCommanderSourceId] = useState<string | null>(null);
+  const commanderArt = useCommanderArt(player?.commanderName);
 
   const opponents = useMemo(() => {
     if (!player) return [];
@@ -58,10 +60,12 @@ export function PlayerActionSheet({
   const handleGridAction = (actionId: PlayerActionId) => {
     if (actionId === 'roll-d6') {
       onToast(String(rollD6()), 'Dado D6');
+      onClose();
       return;
     }
     if (actionId === 'roll-d20') {
       onToast(String(rollD20()), 'Dado D20');
+      onClose();
       return;
     }
     if (actionId === 'eliminate') {
@@ -83,6 +87,28 @@ export function PlayerActionSheet({
       return;
     }
     onAction(player.id, actionId);
+    onClose();
+  };
+
+  const adjustCounter = (counterId: string, delta: number) => {
+    onCounter(player.id, counterId, delta);
+    onClose();
+  };
+
+  const adjustCommanderDamage = (delta: number) => {
+    if (!commanderSourceId) return;
+    onCommanderDamage(player.id, commanderSourceId, delta);
+    onClose();
+  };
+
+  const adjustPoison = (delta: number) => {
+    onPoison(player.id, delta);
+    onClose();
+  };
+
+  const adjustMulligan = (delta: number) => {
+    onMulligan(player.id, delta);
+    onClose();
   };
 
   return (
@@ -91,6 +117,16 @@ export function PlayerActionSheet({
       title={player.name}
       subtitle={`${player.life} vidas · Asiento ${seatIndex}`}
       onClose={onClose}>
+      {commanderArt ? (
+        <View style={styles.artBanner}>
+          <Image source={{ uri: commanderArt }} style={styles.artImage} resizeMode="cover" />
+          <View style={styles.artOverlay} />
+          {player.commanderName ? (
+            <Text style={styles.artLabel}>{player.commanderName}</Text>
+          ) : null}
+        </View>
+      ) : null}
+
       <View style={styles.tabBar}>
         <Pressable
           onPress={() => setTab('actions')}
@@ -122,7 +158,7 @@ export function PlayerActionSheet({
           <CounterGrid
             counters={game.setup.genericCounters}
             player={player}
-            onAdjust={(counterId, delta) => onCounter(player.id, counterId, delta)}
+            onAdjust={adjustCounter}
           />
         </View>
       )}
@@ -134,8 +170,8 @@ export function PlayerActionSheet({
         label="Mulligans usados"
         icon="🃏"
         value={player.mulligans}
-        onDecrement={() => onMulligan(player.id, -1)}
-        onIncrement={() => onMulligan(player.id, 1)}
+        onDecrement={() => adjustMulligan(-1)}
+        onIncrement={() => adjustMulligan(1)}
       />
 
       <Text style={styles.sectionLabel}>Daño de comandante</Text>
@@ -173,8 +209,8 @@ export function PlayerActionSheet({
           value={getCommanderDamage(player, commanderSourceId)}
           danger={commanderDanger}
           warning={getCommanderDamage(player, commanderSourceId) >= 18}
-          onDecrement={() => onCommanderDamage(player.id, commanderSourceId, -1)}
-          onIncrement={() => onCommanderDamage(player.id, commanderSourceId, 1)}
+          onDecrement={() => adjustCommanderDamage(-1)}
+          onIncrement={() => adjustCommanderDamage(1)}
         />
       ) : null}
 
@@ -185,14 +221,34 @@ export function PlayerActionSheet({
         value={player.poison}
         danger={player.poison >= layout.poisonLethal}
         warning={poisonDanger}
-        onDecrement={() => onPoison(player.id, -1)}
-        onIncrement={() => onPoison(player.id, 1)}
+        onDecrement={() => adjustPoison(-1)}
+        onIncrement={() => adjustPoison(1)}
       />
     </Sheet>
   );
 }
 
 const styles = StyleSheet.create({
+  artBanner: {
+    height: 88,
+    borderRadius: radius.lg,
+    overflow: 'hidden',
+    justifyContent: 'flex-end',
+    padding: spacing.md,
+  },
+  artImage: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  artOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+  },
+  artLabel: {
+    fontFamily: typography.fontFamily.sansSemiBold,
+    fontSize: typography.fontSize.sm,
+    color: palette.textPrimary,
+    zIndex: 1,
+  },
   tabBar: {
     flexDirection: 'row',
     backgroundColor: palette.backgroundElevated,

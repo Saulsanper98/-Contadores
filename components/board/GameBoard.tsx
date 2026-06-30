@@ -1,5 +1,6 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { StyleSheet, View, type ViewStyle } from 'react-native';
+import { StyleSheet, Text, View, type ViewStyle } from 'react-native';
 
 import type { EffectKind, GlobalEffect, PanelEffect } from '@/animations/effects';
 import {
@@ -51,6 +52,17 @@ export function GameBoard({
   const boardRef = useRef<View>(null);
   const panelBoundsRef = useRef<PanelBounds[]>([]);
   const [combatDrag, setCombatDrag] = useState<CombatDragState>(null);
+  const [boardOrigin, setBoardOrigin] = useState({ x: 0, y: 0 });
+
+  const measureBoard = useCallback(() => {
+    boardRef.current?.measureInWindow((x, y) => {
+      setBoardOrigin({ x, y });
+    });
+  }, []);
+
+  useEffect(() => {
+    measureBoard();
+  }, [game.players.length, game.setup.tableLayout, measureBoard]);
 
   useEffect(() => {
     if (!globalEffect) return;
@@ -66,7 +78,8 @@ export function GameBoard({
   const registerPanelBounds = useCallback((bounds: PanelBounds) => {
     const list = panelBoundsRef.current.filter((b) => b.playerId !== bounds.playerId);
     panelBoundsRef.current = [...list, bounds];
-  }, []);
+    measureBoard();
+  }, [measureBoard]);
 
   const handleAttackDragStart = useCallback((sourceId: string, x: number, y: number) => {
     setCombatDrag({ sourceId, x, y, targetId: null });
@@ -112,9 +125,13 @@ export function GameBoard({
   };
 
   return (
-    <View ref={boardRef} style={styles.board} collapsable={false}>
+    <View ref={boardRef} style={styles.board} collapsable={false} onLayout={measureBoard}>
       <View style={styles.tableCenter} pointerEvents="none">
-        <View style={styles.tableRing} />
+        <LinearGradient
+          colors={['rgba(255,255,255,0.08)', 'rgba(255,255,255,0.02)', 'transparent']}
+          style={styles.tableRing}
+        />
+        <Text style={styles.tableIcon}>⚔</Text>
       </View>
 
       {grid.seats.map((seat) => {
@@ -154,7 +171,11 @@ export function GameBoard({
         );
       })}
 
-      <CombatDragOverlay drag={combatDrag} panelBounds={panelBoundsRef.current} />
+      <CombatDragOverlay
+        drag={combatDrag}
+        panelBounds={panelBoundsRef.current}
+        boardOrigin={boardOrigin}
+      />
     </View>
   );
 }
@@ -172,11 +193,17 @@ const styles = StyleSheet.create({
     zIndex: 0,
   },
   tableRing: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.04)',
-    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tableIcon: {
+    position: 'absolute',
+    fontSize: 22,
+    color: 'rgba(255, 255, 255, 0.35)',
   },
 });

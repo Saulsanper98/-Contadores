@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { ManaIdentityPicker } from '@/components/setup/ManaIdentityPicker';
+import { CommanderArtBackground } from '@/components/board/CommanderArtBackground';
 import { TextField } from '@/components/ui/TextField';
 import { getManaPanelTheme } from '@/theme/manaTheme';
 import { palette, radius, spacing, typography } from '@/theme';
@@ -48,6 +49,16 @@ export function PlayerConfigCard({ index, player, onChange }: PlayerConfigCardPr
           onChangeText={(commanderName) => onChange({ commanderName })}
           placeholder="Nombre del comandante"
         />
+
+        {player.commanderName?.trim() ? (
+          <View style={styles.preview}>
+            <CommanderArtBackground
+              commanderName={player.commanderName}
+              manaIdentity={player.manaIdentity}
+            />
+            <Text style={styles.previewLabel}>{player.commanderName}</Text>
+          </View>
+        ) : null}
 
         <View style={styles.guestRow}>
           <Text style={styles.guestLabel}>Jugador invitado (sin cuenta)</Text>
@@ -97,6 +108,21 @@ const styles = StyleSheet.create({
     color: palette.warning,
   },
   dot: { width: 10, height: 10, borderRadius: 5 },
+  preview: {
+    height: 96,
+    borderRadius: radius.lg,
+    overflow: 'hidden',
+    justifyContent: 'flex-end',
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: palette.border,
+  },
+  previewLabel: {
+    fontFamily: typography.fontFamily.sansSemiBold,
+    fontSize: typography.fontSize.sm,
+    color: palette.textPrimary,
+    zIndex: 1,
+  },
   guestRow: {
     flexDirection: 'row',
     alignItems: 'center',

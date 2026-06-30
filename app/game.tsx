@@ -17,7 +17,6 @@ import { WinGameSheet } from '@/components/game/WinGameSheet';
 import type { PlayerActionId } from '@/data/playerActions';
 import { Button } from '@/components/ui/Button';
 import { Screen } from '@/components/ui/Screen';
-import { getBoardGrid } from '@/engine/seatLayouts';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useLiveClock } from '@/hooks/useLiveClock';
 import { palette, radius, spacing, typography } from '@/theme';
@@ -100,13 +99,6 @@ export default function GameScreen() {
     () => game?.players.find((p) => p.id === combatSession?.targetId) ?? null,
     [game, combatSession],
   );
-
-  const combatRotation = useMemo(() => {
-    if (!game || !combatSession) return 0;
-    const grid = getBoardGrid(game.players.length);
-    const seat = grid.seats.find((s) => game.players[s.playerIndex]?.id === combatSession.sourceId);
-    return seat?.rotation ?? 0;
-  }, [game, combatSession]);
 
   const handleUndo = useCallback(() => {
     const ok = undo();
@@ -211,7 +203,6 @@ export default function GameScreen() {
           visible={combatSession !== null}
           source={combatSource}
           target={combatTarget}
-          sourceRotation={combatRotation}
           onClose={() => setCombatSession(null)}
           onResolve={resolveCombat}
         />

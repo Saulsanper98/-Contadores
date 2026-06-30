@@ -1,10 +1,10 @@
 import { useCallback, useRef, useState } from 'react';
 import { LayoutChangeEvent, Pressable, StyleSheet, Text, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { GestureDetector } from 'react-native-gesture-handler';
 
 import { PanelEffectWrapper } from '@/components/animations/PanelEffectWrapper';
 import type { PanelBounds } from '@/components/board/CombatDragOverlay';
+import { CommanderArtBackground } from '@/components/board/CommanderArtBackground';
 import { FloatingDelta } from '@/components/board/FloatingDelta';
 import { useLifeCounterGestures } from '@/hooks/useLifeCounterGestures';
 import type { EffectKind } from '@/animations/effects';
@@ -16,7 +16,6 @@ import {
 import type { PlayerGameState } from '@/engine/types';
 import { MANA_OPTIONS } from '@/store/gameStore';
 import { getManaPanelTheme, opacity, palette, radius, spacing, typography } from '@/theme';
-
 type PlayerPanelProps = {
   player: PlayerGameState;
   seatIndex: number;
@@ -108,15 +107,10 @@ export function PlayerPanel({
         effectKind={effectKind}
         reducedMotion={reducedMotion}
         onEffectEnd={onEffectEnd}>
-        <LinearGradient
-          colors={theme.gradient}
-          locations={[0, 0.45, 1]}
-          start={{ x: 0.5, y: 0 }}
-          end={{ x: 0.5, y: 1 }}
-          style={StyleSheet.absoluteFill}
+        <CommanderArtBackground
+          commanderName={player.commanderName}
+          manaIdentity={player.manaIdentity}
         />
-
-        <View style={[styles.glowOrb, { backgroundColor: theme.glow }]} />
 
         <Pressable
           accessibilityRole="button"
@@ -174,7 +168,7 @@ export function PlayerPanel({
               </Text>
 
               <Text style={[styles.seat, { color: theme.mutedColor }]}>
-                ASIENTO {seatIndex + 1}
+                {player.commanderName ? player.commanderName.toUpperCase() : `ASIENTO ${seatIndex + 1}`}
               </Text>
 
               {hasStats ? (
@@ -247,15 +241,6 @@ const styles = StyleSheet.create({
   },
   eliminated: {
     opacity: opacity.muted,
-  },
-  glowOrb: {
-    position: 'absolute',
-    top: '18%',
-    alignSelf: 'center',
-    width: '70%',
-    height: '35%',
-    borderRadius: radius.full,
-    opacity: 0.22,
   },
   menuBtn: {
     position: 'absolute',
