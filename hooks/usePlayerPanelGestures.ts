@@ -19,6 +19,7 @@ type UsePlayerPanelGesturesOptions = {
   ) => boolean;
   onAttackDragMove?: (absoluteX: number, absoluteY: number) => void;
   onAttackDragEnd?: (absoluteX: number, absoluteY: number) => void;
+  onOpenMenu?: () => void;
 };
 
 export function usePlayerPanelGestures({
@@ -28,6 +29,7 @@ export function usePlayerPanelGestures({
   onTryCombatStart,
   onAttackDragMove,
   onAttackDragEnd,
+  onOpenMenu,
 }: UsePlayerPanelGesturesOptions) {
   const [leftFloatingDelta, setLeftFloatingDelta] = useState<number | null>(null);
   const [rightFloatingDelta, setRightFloatingDelta] = useState<number | null>(null);
@@ -178,6 +180,30 @@ export function usePlayerPanelGestures({
     [commitPending, disabled, onAttackDragEnd, onAttackDragMove, onTryCombatStart],
   );
 
+  const handleDoubleTap = useCallback(
+    (localX: number) => {
+      if (disabled) return;
+      const zone = getPanelTouchZone(localX, panelWidth);
+      if (zone === 'center') onOpenMenu?.();
+    },
+    [disabled, onOpenMenu, panelWidth],
+  );
+
+  const taps = Gesture.Exclusive(
+    Gesture.Tap()
+      .numberOfTaps(2)
+      .maxDuration(320)
+      .enabled(!disabled)
+      .onEnd((event) => {
+        runOnJS(handleDoubleTap)(event.x);
+      }),
+    Gesture.Tap()
+      .enabled(!disabled)
+      .onEnd((event) => {
+        runOnJS(handleTap)(event.x);
+      }),
+  );
+
   const gesture = Gesture.Exclusive(
     Gesture.LongPress()
       .minDuration(260)
@@ -210,11 +236,7 @@ export function usePlayerPanelGestures({
           event.translationY,
         );
       }),
-    Gesture.Tap()
-      .enabled(!disabled)
-      .onEnd((event) => {
-        runOnJS(handleTap)(event.x);
-      }),
+    taps,
   );
 
   return { gesture, leftFloatingDelta, rightFloatingDelta };

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -92,6 +92,7 @@ export function PlayerPanel({
     onTryCombatStart,
     onAttackDragMove,
     onAttackDragEnd,
+    onOpenMenu: () => onOpenActions(player.id),
   });
 
   const reportBounds = useCallback(() => {
@@ -131,14 +132,6 @@ export function PlayerPanel({
           style={styles.vignette}
           pointerEvents="none"
         />
-
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Acciones de ${player.name}`}
-          onPress={() => onOpenActions(player.id)}
-          style={styles.menuBtn}>
-          <Text style={[styles.menuIcon, { color: theme.mutedColor }]}>⋯</Text>
-        </Pressable>
 
         <GestureDetector gesture={gesture}>
           <View
@@ -291,24 +284,6 @@ const styles = StyleSheet.create({
   },
   eliminated: {
     opacity: opacity.muted,
-  },
-  menuBtn: {
-    position: 'absolute',
-    top: spacing.sm,
-    right: spacing.sm,
-    zIndex: 20,
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  menuIcon: {
-    fontSize: 16,
-    lineHeight: 18,
   },
   touchRotator: {
     flex: 1,
