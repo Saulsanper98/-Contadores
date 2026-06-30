@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { GenericCounterEditor } from '@/components/setup/GenericCounterEditor';
 import { PlayerConfigCard } from '@/components/setup/PlayerConfigCard';
@@ -14,6 +15,7 @@ import { layout, palette, radius, spacing, typography } from '@/theme';
 import { useGameStore, useSetupStore } from '@/store/gameStore';
 
 export default function SetupScreen() {
+  const insets = useSafeAreaInsets();
   const setup = useSetupStore((state) => state.setup);
   const setPlayerCount = useSetupStore((state) => state.setPlayerCount);
   const setStartingLife = useSetupStore((state) => state.setStartingLife);
@@ -40,7 +42,10 @@ export default function SetupScreen() {
       <StatusBar style="light" />
       <View style={styles.bgGlow} />
       <ScrollView
-        contentContainerStyle={styles.scroll}
+        contentContainerStyle={[
+          styles.scroll,
+          { paddingTop: insets.top + spacing.lg, paddingBottom: insets.bottom + spacing.xxxl },
+        ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
@@ -57,6 +62,7 @@ export default function SetupScreen() {
             max={layout.maxPlayerCount}
             onChange={setPlayerCount}
           />
+          <View style={styles.divider} />
           <Stepper
             label="Vida inicial"
             value={setup.startingLife}
@@ -93,7 +99,7 @@ export default function SetupScreen() {
         </Section>
 
         <View style={styles.actions}>
-          <Button label="Empezar partida →" onPress={handleStart} />
+          <Button label="Empezar partida" onPress={handleStart} />
           <Button label="Volver" variant="ghost" onPress={() => router.back()} />
         </View>
       </ScrollView>
@@ -104,17 +110,15 @@ export default function SetupScreen() {
 const styles = StyleSheet.create({
   bgGlow: {
     position: 'absolute',
-    top: -120,
+    top: -80,
     alignSelf: 'center',
-    width: 320,
-    height: 320,
-    borderRadius: 160,
+    width: 280,
+    height: 280,
+    borderRadius: 140,
     backgroundColor: palette.accentMuted,
-    opacity: 0.35,
+    opacity: 0.5,
   },
   scroll: {
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.xxxl,
     paddingHorizontal: spacing.lg,
     gap: spacing.lg,
   },
@@ -131,6 +135,7 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.sansBold,
     fontSize: typography.fontSize.xxl,
     color: palette.textPrimary,
+    letterSpacing: typography.letterSpacing.tight,
   },
   subtitle: {
     fontFamily: typography.fontFamily.sans,
@@ -139,16 +144,21 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: palette.surface,
-    borderRadius: radius.lg,
+    borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: palette.border,
-    padding: spacing.md,
+    padding: spacing.lg,
     gap: spacing.lg,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: palette.border,
   },
   sectionTitle: {
     fontFamily: typography.fontFamily.sansSemiBold,
     fontSize: typography.fontSize.lg,
     color: palette.textPrimary,
+    marginTop: spacing.xs,
   },
   toolsRow: {
     flexDirection: 'row',
@@ -158,7 +168,7 @@ const styles = StyleSheet.create({
   toolResult: {
     fontFamily: typography.fontFamily.monoBold,
     fontSize: typography.fontSize.md,
-    color: palette.textPrimary,
+    color: palette.accentSecondary,
     textAlign: 'center',
     marginTop: spacing.sm,
   },

@@ -84,23 +84,28 @@ export default function GameScreen() {
   }
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+    <View style={[styles.root, { paddingBottom: insets.bottom }]}>
       <StatusBar style="light" hidden />
 
-      <View style={styles.toolbar}>
-        <Pressable accessibilityRole="button" onPress={() => setMenuOpen(true)} style={styles.toolBtn}>
+      <View style={[styles.toolbar, { paddingTop: insets.top + spacing.xs }]}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Menú"
+          onPress={() => setMenuOpen(true)}
+          style={styles.toolBtn}>
           <Text style={styles.toolBtnText}>☰</Text>
         </Pressable>
 
         <View style={styles.toolbarCenter}>
           <Text style={styles.toolbarTitle}>COMMANDER</Text>
           <Text style={styles.toolbarMeta}>
-            {game.players.length} jugadores · {canUndo ? '↩ disponible' : 'sin undo'}
+            {game.players.length} jugadores{canUndo ? ' · ↩ undo' : ''}
           </Text>
         </View>
 
         <Pressable
           accessibilityRole="button"
+          accessibilityLabel="Acciones de mesa"
           onPress={() => setGroupOpen(true)}
           style={[styles.toolBtn, styles.toolBtnAccent]}>
           <Text style={styles.toolBtnTextAccent}>⚡</Text>
@@ -181,40 +186,37 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingBottom: spacing.sm,
     gap: spacing.md,
-    backgroundColor: palette.backgroundElevated,
-    borderBottomWidth: 1,
-    borderBottomColor: palette.border,
+    backgroundColor: 'transparent',
+    zIndex: 10,
   },
   toolbarCenter: {
     flex: 1,
     alignItems: 'center',
-    gap: 2,
+    gap: 1,
   },
   toolbarTitle: {
     fontFamily: typography.fontFamily.sansBold,
-    fontSize: typography.fontSize.sm,
-    letterSpacing: 3,
+    fontSize: typography.fontSize.xs,
+    letterSpacing: 4,
     color: palette.textPrimary,
   },
   toolbarMeta: {
     fontFamily: typography.fontFamily.mono,
-    fontSize: typography.fontSize.xs,
+    fontSize: 10,
     color: palette.textMuted,
+    letterSpacing: 0.5,
   },
   toolBtn: {
-    width: 40,
-    height: 40,
+    width: 38,
+    height: 38,
     borderRadius: radius.md,
-    backgroundColor: palette.surface,
-    borderWidth: 1,
-    borderColor: palette.border,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   toolBtnAccent: {
-    borderColor: palette.accent,
     backgroundColor: palette.accentMuted,
   },
   toolBtnText: {

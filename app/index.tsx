@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 
 import { Button } from '@/components/ui/Button';
 import { ManaPip } from '@/components/ui/ManaPip';
@@ -14,8 +15,11 @@ export default function HomeScreen() {
   return (
     <Screen>
       <StatusBar style="light" />
-      <View style={styles.glowTop} />
-      <View style={styles.glowBottom} />
+      <LinearGradient
+        colors={['rgba(99, 102, 241, 0.18)', 'transparent', 'rgba(34, 211, 238, 0.08)']}
+        locations={[0, 0.5, 1]}
+        style={StyleSheet.absoluteFill}
+      />
 
       <View style={styles.content}>
         <Text style={styles.eyebrow}>MAGIC: THE GATHERING</Text>
@@ -24,8 +28,8 @@ export default function HomeScreen() {
 
         <View style={styles.heroCard}>
           <Text style={styles.heroText}>
-            Coloca el teléfono en el centro de la mesa. Cada jugador toca su panel, orientado
-            hacia su asiento.
+            Coloca el teléfono en el centro de la mesa. Cada jugador toca su panel,
+            orientado hacia su asiento.
           </Text>
         </View>
 
@@ -34,7 +38,7 @@ export default function HomeScreen() {
             <Button label="Continuar partida" onPress={() => router.push('/game')} />
           ) : null}
           <Button
-            label={game ? 'Nueva partida' : 'Nueva partida'}
+            label="Nueva partida"
             variant={game ? 'secondary' : 'primary'}
             onPress={() => router.push('/setup')}
           />
@@ -51,25 +55,6 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  glowTop: {
-    position: 'absolute',
-    top: '8%',
-    left: '10%',
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    backgroundColor: palette.accentMuted,
-    opacity: 0.4,
-  },
-  glowBottom: {
-    position: 'absolute',
-    bottom: '12%',
-    right: '5%',
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    backgroundColor: 'rgba(245, 90, 78, 0.12)',
-  },
   content: {
     flex: 1,
     alignItems: 'center',
@@ -80,12 +65,12 @@ const styles = StyleSheet.create({
   eyebrow: {
     fontFamily: typography.fontFamily.sansSemiBold,
     fontSize: typography.fontSize.xs,
-    letterSpacing: 3,
+    letterSpacing: 4,
     color: palette.textMuted,
   },
   title: {
     fontFamily: typography.fontFamily.sansBold,
-    fontSize: 48,
+    fontSize: 52,
     letterSpacing: typography.letterSpacing.tight,
     color: palette.textPrimary,
   },
@@ -97,7 +82,7 @@ const styles = StyleSheet.create({
   },
   heroCard: {
     backgroundColor: palette.surface,
-    borderRadius: radius.lg,
+    borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: palette.border,
     padding: spacing.lg,
@@ -114,10 +99,12 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 320,
     marginTop: spacing.md,
+    gap: spacing.sm,
   },
   manaRow: {
     flexDirection: 'row',
-    gap: spacing.sm,
+    gap: spacing.md,
     marginTop: spacing.xl,
+    opacity: 0.85,
   },
 });

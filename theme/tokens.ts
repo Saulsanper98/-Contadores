@@ -16,8 +16,8 @@ export const spacing = {
 export const radius = {
   sm: 8,
   md: 12,
-  lg: 16,
-  xl: 24,
+  lg: 20,
+  xl: 28,
   full: 9999,
 } as const;
 
@@ -37,8 +37,9 @@ export const typography = {
     lg: 20,
     xl: 28,
     xxl: 40,
-    lifeCounter: 72,
-    lifeCounterLarge: 96,
+    lifeCounter: 80,
+    lifeCounterLarge: 104,
+    lifeCounterHero: 120,
   },
   lineHeight: {
     tight: 1.1,

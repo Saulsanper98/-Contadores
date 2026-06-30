@@ -24,17 +24,18 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: typography.fontFamily.sansSemiBold,
-    fontSize: typography.fontSize.xs,
-    letterSpacing: typography.letterSpacing.wide,
+    fontSize: 10,
+    letterSpacing: 2,
     color: palette.textMuted,
     textTransform: 'uppercase',
+    marginLeft: spacing.xs,
   },
   body: {
     backgroundColor: palette.surface,
-    borderRadius: radius.lg,
+    borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: palette.border,
-    padding: spacing.md,
-    gap: spacing.sm,
+    padding: spacing.lg,
+    gap: spacing.md,
   },
 });

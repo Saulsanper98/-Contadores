@@ -40,12 +40,14 @@ export function Stepper({ label, value, min = 1, max = 99, onChange }: StepperPr
 
 const styles = StyleSheet.create({
   container: {
-    gap: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   label: {
     fontFamily: typography.fontFamily.sansMedium,
-    fontSize: typography.fontSize.sm,
-    color: palette.textSecondary,
+    fontSize: typography.fontSize.md,
+    color: palette.textPrimary,
   },
   controls: {
     flexDirection: 'row',
@@ -53,17 +55,18 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   button: {
-    width: 48,
-    height: 48,
+    width: 44,
+    height: 44,
     borderRadius: radius.md,
-    backgroundColor: palette.surface,
+    backgroundColor: palette.backgroundElevated,
     borderWidth: 1,
-    borderColor: palette.borderStrong,
+    borderColor: palette.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
   pressed: {
     backgroundColor: palette.surfaceHover,
+    transform: [{ scale: 0.95 }],
   },
   buttonText: {
     fontFamily: typography.fontFamily.monoBold,
@@ -71,10 +74,10 @@ const styles = StyleSheet.create({
     color: palette.textPrimary,
   },
   value: {
-    minWidth: 56,
+    minWidth: 48,
     textAlign: 'center',
     fontFamily: typography.fontFamily.monoBold,
-    fontSize: typography.fontSize.xl,
+    fontSize: typography.fontSize.xxl,
     color: palette.textPrimary,
   },
 });

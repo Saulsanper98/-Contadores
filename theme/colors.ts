@@ -1,53 +1,50 @@
 /**
- * MTG-inspired color palette — WUBRG identities + control-room dark surfaces.
+ * Playgroup-inspired palette — deep navy surfaces, vivid mana panels, minimal chrome.
  */
 
 export const manaColors = {
-  white: { primary: '#F8F6D8', accent: '#E8E4C9', glow: 'rgba(248, 246, 216, 0.35)' },
-  blue: { primary: '#0E68AB', accent: '#3D9BE9', glow: 'rgba(61, 155, 233, 0.35)' },
-  black: { primary: '#150B00', accent: '#4A4A4A', glow: 'rgba(100, 100, 100, 0.35)' },
-  red: { primary: '#D3202A', accent: '#F55A4E', glow: 'rgba(245, 90, 78, 0.35)' },
-  green: { primary: '#00733E', accent: '#3BB273', glow: 'rgba(59, 178, 115, 0.35)' },
-  colorless: { primary: '#C4C4C4', accent: '#9E9E9E', glow: 'rgba(196, 196, 196, 0.25)' },
-  multicolor: { primary: '#D4AF37', accent: '#F0C75E', glow: 'rgba(212, 175, 55, 0.35)' },
+  white: { primary: '#F3F0E0', accent: '#E8E4C9', glow: 'rgba(243, 240, 224, 0.4)' },
+  blue: { primary: '#1D6FD8', accent: '#4DA3FF', glow: 'rgba(77, 163, 255, 0.45)' },
+  black: { primary: '#2B2118', accent: '#5C534A', glow: 'rgba(92, 83, 74, 0.45)' },
+  red: { primary: '#D63A32', accent: '#FF6B5E', glow: 'rgba(255, 107, 94, 0.45)' },
+  green: { primary: '#1F8A4C', accent: '#3FD47A', glow: 'rgba(63, 212, 122, 0.42)' },
+  colorless: { primary: '#B8BCC4', accent: '#D7DBE0', glow: 'rgba(184, 188, 196, 0.35)' },
+  multicolor: { primary: '#C9A227', accent: '#F0C75E', glow: 'rgba(201, 162, 39, 0.42)' },
 } as const;
 
 export type ManaIdentity = keyof typeof manaColors;
 
 export const palette = {
-  // Surfaces — control-room dark
-  background: '#0A0A0F',
-  backgroundElevated: '#12121A',
-  surface: '#1A1A24',
-  surfaceHover: '#22222E',
-  surfaceGlass: 'rgba(26, 26, 36, 0.72)',
-  border: 'rgba(255, 255, 255, 0.08)',
-  borderStrong: 'rgba(255, 255, 255, 0.16)',
+  background: '#06090f',
+  backgroundElevated: '#0d1219',
+  surface: '#121820',
+  surfaceHover: '#18202b',
+  surfaceGlass: 'rgba(13, 18, 25, 0.88)',
+  border: 'rgba(255, 255, 255, 0.06)',
+  borderStrong: 'rgba(255, 255, 255, 0.12)',
 
-  // Text
-  textPrimary: '#F4F4F5',
-  textSecondary: '#A1A1AA',
-  textMuted: '#71717A',
-  textInverse: '#0A0A0F',
+  textPrimary: '#F8FAFC',
+  textSecondary: '#94A3B8',
+  textMuted: '#64748B',
+  textInverse: '#0F172A',
 
-  // Semantic
-  life: '#F4F4F5',
-  damage: '#EF4444',
-  damageGlow: 'rgba(239, 68, 68, 0.45)',
-  heal: '#22C55E',
-  healGlow: 'rgba(34, 197, 94, 0.45)',
-  poison: '#84CC16',
-  poisonGlow: 'rgba(132, 204, 22, 0.45)',
-  commander: '#F59E0B',
-  commanderGlow: 'rgba(245, 158, 11, 0.45)',
-  monarch: '#EAB308',
-  monarchGlow: 'rgba(234, 179, 8, 0.5)',
-  eliminated: '#52525B',
+  life: '#FFFFFF',
+  damage: '#FF5A52',
+  damageGlow: 'rgba(255, 90, 82, 0.35)',
+  heal: '#34D399',
+  healGlow: 'rgba(52, 211, 153, 0.3)',
+  poison: '#A3E635',
+  poisonGlow: 'rgba(163, 230, 53, 0.32)',
+  commander: '#FBBF24',
+  commanderGlow: 'rgba(251, 191, 36, 0.35)',
+  monarch: '#FCD34D',
+  monarchGlow: 'rgba(252, 211, 77, 0.45)',
+  eliminated: '#64748B',
 
-  // Accents
-  accent: '#8B5CF6',
-  accentMuted: 'rgba(139, 92, 246, 0.2)',
+  accent: '#6366F1',
+  accentSecondary: '#22D3EE',
+  accentMuted: 'rgba(99, 102, 241, 0.16)',
   warning: '#F59E0B',
-  danger: '#DC2626',
-  success: '#16A34A',
+  danger: '#EF4444',
+  success: '#10B981',
 } as const;

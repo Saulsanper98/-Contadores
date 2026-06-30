@@ -8,6 +8,7 @@ import {
   View,
   type ViewStyle,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { palette, radius, spacing, typography } from '@/theme';
 
@@ -21,11 +22,13 @@ type SheetProps = {
 };
 
 export function Sheet({ visible, title, subtitle, onClose, children, contentStyle }: SheetProps) {
+  const insets = useSafeAreaInsets();
+
   return (
     <Modal animationType="slide" transparent visible={visible} onRequestClose={onClose}>
       <View style={styles.overlay}>
         <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="Cerrar" />
-        <View style={[styles.panel, contentStyle]}>
+        <View style={[styles.panel, { paddingBottom: insets.bottom + spacing.lg }, contentStyle]}>
           <View style={styles.handle} />
           <View style={styles.header}>
             <View style={styles.headerText}>
@@ -55,26 +58,25 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.72)',
+    backgroundColor: 'rgba(0, 0, 0, 0.78)',
   },
   panel: {
-    maxHeight: '82%',
+    maxHeight: '85%',
     backgroundColor: palette.backgroundElevated,
     borderTopLeftRadius: radius.xl,
     borderTopRightRadius: radius.xl,
     borderWidth: 1,
-    borderColor: palette.borderStrong,
+    borderColor: palette.border,
     borderBottomWidth: 0,
-    paddingBottom: spacing.xl,
   },
   handle: {
     alignSelf: 'center',
-    width: 40,
+    width: 36,
     height: 4,
     borderRadius: 2,
     backgroundColor: palette.borderStrong,
     marginTop: spacing.sm,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.md,
   },
   header: {
     flexDirection: 'row',
@@ -82,8 +84,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: palette.border,
   },
   headerText: {
     flex: 1,
@@ -91,30 +91,30 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: typography.fontFamily.sansBold,
-    fontSize: typography.fontSize.lg,
+    fontSize: typography.fontSize.xl,
     color: palette.textPrimary,
+    letterSpacing: typography.letterSpacing.tight,
   },
   subtitle: {
     fontFamily: typography.fontFamily.sans,
     fontSize: typography.fontSize.sm,
-    color: palette.textSecondary,
+    color: palette.textMuted,
   },
   close: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: palette.surface,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: palette.border,
   },
   closeText: {
     color: palette.textSecondary,
     fontSize: typography.fontSize.md,
   },
   content: {
-    padding: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.lg,
     gap: spacing.lg,
   },
 });

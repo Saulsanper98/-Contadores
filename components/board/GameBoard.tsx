@@ -19,10 +19,12 @@ type GameBoardProps = {
 };
 
 function lifeFontSize(playerCount: number): number {
-  if (playerCount >= 6) return typography.fontSize.xxl;
-  if (playerCount >= 4) return typography.fontSize.xl;
-  return typography.fontSize.lifeCounter;
+  if (playerCount >= 6) return typography.fontSize.lifeCounter;
+  if (playerCount >= 4) return typography.fontSize.lifeCounterLarge;
+  return typography.fontSize.lifeCounterHero;
 }
+
+const PANEL_GAP = 3;
 
 export function GameBoard({
   game,
@@ -53,7 +55,7 @@ export function GameBoard({
     top: `${(row / grid.rows) * 100}%`,
     width: `${(colSpan / grid.cols) * 100}%`,
     height: `${(rowSpan / grid.rows) * 100}%`,
-    padding: spacing.xs / 2,
+    padding: PANEL_GAP,
   });
 
   const resolveEffect = (
@@ -72,8 +74,9 @@ export function GameBoard({
 
   return (
     <View style={styles.board}>
-      <View style={styles.vignette} pointerEvents="none" />
-      <View style={styles.gridGlow} pointerEvents="none" />
+      <View style={styles.tableCenter} pointerEvents="none">
+        <View style={styles.tableRing} />
+      </View>
       {grid.seats.map((seat) => {
         const player = game.players[seat.playerIndex];
         if (!player) return null;
@@ -110,22 +113,20 @@ const styles = StyleSheet.create({
   board: {
     flex: 1,
     backgroundColor: palette.background,
+    padding: spacing.xs,
   },
-  vignette: {
+  tableCenter: {
     ...StyleSheet.absoluteFillObject,
-    borderWidth: spacing.md,
-    borderColor: 'rgba(0,0,0,0.4)',
-    zIndex: 1,
-  },
-  gridGlow: {
-    position: 'absolute',
-    alignSelf: 'center',
-    top: '30%',
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: palette.accentMuted,
-    opacity: 0.15,
+    alignItems: 'center',
+    justifyContent: 'center',
     zIndex: 0,
+  },
+  tableRing: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.04)',
+    backgroundColor: 'rgba(255, 255, 255, 0.02)',
   },
 });

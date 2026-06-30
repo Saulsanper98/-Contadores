@@ -188,16 +188,16 @@ const styles = StyleSheet.create({
   opponentChip: {
     width: '47%',
     backgroundColor: palette.backgroundElevated,
-    borderRadius: radius.md,
-    borderWidth: 1,
+    borderRadius: radius.lg,
+    borderWidth: 1.5,
     borderColor: palette.border,
-    padding: spacing.sm,
+    padding: spacing.md,
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
   },
   opponentSelected: {
     borderColor: palette.commander,
-    backgroundColor: 'rgba(245, 158, 11, 0.08)',
+    backgroundColor: 'rgba(251, 191, 36, 0.1)',
   },
   opponentName: {
     fontFamily: typography.fontFamily.sansMedium,

@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { LayoutChangeEvent, Pressable, StyleSheet, Text, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { GestureDetector } from 'react-native-gesture-handler';
 
 import { PanelEffectWrapper } from '@/components/animations/PanelEffectWrapper';
@@ -12,7 +13,8 @@ import {
   isPoisonDanger,
 } from '@/engine';
 import type { PlayerGameState } from '@/engine/types';
-import { manaColors, opacity, palette, radius, spacing, typography } from '@/theme';
+import { MANA_OPTIONS } from '@/store/gameStore';
+import { getManaPanelTheme, opacity, palette, radius, spacing, typography } from '@/theme';
 
 type PlayerPanelProps = {
   player: PlayerGameState;
@@ -45,10 +47,13 @@ export function PlayerPanel({
 }: PlayerPanelProps) {
   const [panelHeight, setPanelHeight] = useState(0);
   const disabled = player.isEliminated;
-  const accent = manaColors[player.manaIdentity];
+  const theme = getManaPanelTheme(player.manaIdentity);
+  const manaSymbol =
+    MANA_OPTIONS.find((m) => m.id === player.manaIdentity)?.symbol ?? '?';
   const maxCmd = getMaxCommanderDamage(player);
   const poisonWarn = isPoisonDanger(player.poison);
   const cmdWarn = isCommanderDanger(player);
+  const hasStats = (player.poison > 0 || maxCmd > 0) && !disabled;
 
   const onCommitDelta = useCallback(
     (delta: number) => {
@@ -64,98 +69,120 @@ export function PlayerPanel({
   });
 
   return (
-    <View
-      style={[
-        styles.slot,
-        style,
-        disabled && styles.eliminated,
-        { borderColor: accent.glow },
-      ]}>
+    <View style={[styles.slot, style, disabled && styles.eliminated]}>
       <PanelEffectWrapper
         effectId={effectId}
         effectKind={effectKind}
         reducedMotion={reducedMotion}
         onEffectEnd={onEffectEnd}>
-        <View style={[styles.glow, { backgroundColor: accent.glow }]} />
+        <LinearGradient
+          colors={theme.gradient}
+          locations={[0, 0.45, 1]}
+          start={{ x: 0.5, y: 0 }}
+          end={{ x: 0.5, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`Acciones de ${player.name}`}
-        onPress={() => onOpenActions(player.id)}
-        style={styles.menuBtn}>
-        <Text style={styles.menuIcon}>⋯</Text>
-      </Pressable>
+        <View style={[styles.glowOrb, { backgroundColor: theme.glow }]} />
 
-      <GestureDetector gesture={gesture}>
-        <View
-          style={styles.touchArea}
-          onLayout={(e: LayoutChangeEvent) =>
-            setPanelHeight(e.nativeEvent.layout.height)
-          }>
-          <View style={[styles.rotated, { transform: [{ rotate: `${rotation}deg` }] }]}>
-            {isMonarch ? <Text style={styles.crown}>👑</Text> : null}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Acciones de ${player.name}`}
+          onPress={() => onOpenActions(player.id)}
+          style={styles.menuBtn}>
+          <Text style={[styles.menuIcon, { color: theme.mutedColor }]}>⋯</Text>
+        </Pressable>
 
-            <View style={[styles.manaStripe, { backgroundColor: accent.primary }]} />
-
-            <Text style={styles.seat}>ASIENTO {seatIndex + 1}</Text>
-            <Text style={styles.name} numberOfLines={1}>
-              {player.name}
-            </Text>
-
-            <Text
-              style={[
-                styles.life,
-                { fontSize: lifeFontSize },
-                player.life <= 10 && !disabled && styles.lifeLow,
-                disabled && styles.lifeEliminated,
-              ]}>
-              {player.life}
-            </Text>
-
-            {(player.poison > 0 || maxCmd > 0) && !disabled ? (
-              <View style={styles.statsRow}>
-                {player.poison > 0 ? (
-                  <View style={[styles.statChip, poisonWarn && styles.statDanger]}>
-                    <Text style={styles.statText}>☠ {player.poison}</Text>
-                    {player.poison > 0 ? (
-                      <View style={styles.poisonDrops}>
-                        {Array.from({ length: Math.min(player.poison, 10) }).map((_, i) => (
-                          <Text key={i} style={styles.drop}>
-                            ●
-                          </Text>
-                        ))}
-                      </View>
-                    ) : null}
-                  </View>
-                ) : null}
-                {maxCmd > 0 ? (
-                  <View style={[styles.statChip, cmdWarn && styles.statWarn]}>
-                    <Text style={styles.statText}>⚔ {maxCmd}</Text>
-                  </View>
-                ) : null}
-              </View>
-            ) : null}
-
-            {disabled ? (
-              <View style={styles.fallen}>
-                <Text style={styles.fallenX}>✕</Text>
-                <Text style={styles.eliminatedLabel}>CAÍDO</Text>
-              </View>
-            ) : (
-              <View style={styles.zones}>
-                <View style={styles.zoneTop}>
-                  <Text style={styles.zoneLabel}>+1</Text>
+        <GestureDetector gesture={gesture}>
+          <View
+            style={styles.touchArea}
+            onLayout={(e: LayoutChangeEvent) =>
+              setPanelHeight(e.nativeEvent.layout.height)
+            }>
+            <View style={[styles.rotated, { transform: [{ rotate: `${rotation}deg` }] }]}>
+              {isMonarch ? (
+                <View style={styles.crownWrap}>
+                  <Text style={styles.crown}>👑</Text>
                 </View>
-                <View style={styles.zoneDivider} />
-                <View style={styles.zoneBottom}>
-                  <Text style={styles.zoneLabel}>−1</Text>
-                </View>
+              ) : null}
+
+              <View style={[styles.manaPip, { backgroundColor: theme.accent }]}>
+                <Text
+                  style={[
+                    styles.manaSymbol,
+                    {
+                      color:
+                        player.manaIdentity === 'white' || player.manaIdentity === 'colorless'
+                          ? palette.textInverse
+                          : palette.textPrimary,
+                    },
+                  ]}>
+                  {manaSymbol}
+                </Text>
               </View>
-            )}
+
+              <Text
+                style={[styles.name, { color: theme.nameColor }]}
+                numberOfLines={1}>
+                {player.name}
+              </Text>
+
+              <Text
+                style={[
+                  styles.life,
+                  {
+                    fontSize: lifeFontSize,
+                    color: disabled ? palette.eliminated : theme.lifeColor,
+                  },
+                  player.life <= 10 && !disabled && styles.lifeLow,
+                  disabled && styles.lifeEliminated,
+                ]}>
+                {player.life}
+              </Text>
+
+              <Text style={[styles.seat, { color: theme.mutedColor }]}>
+                ASIENTO {seatIndex + 1}
+              </Text>
+
+              {hasStats ? (
+                <View style={styles.statsRow}>
+                  {player.poison > 0 ? (
+                    <View
+                      style={[
+                        styles.statChip,
+                        { backgroundColor: theme.chipBg, borderColor: theme.chipBorder },
+                        poisonWarn && styles.statDanger,
+                      ]}>
+                      <Text style={[styles.statText, { color: theme.nameColor }]}>
+                        ☠ {player.poison}
+                      </Text>
+                    </View>
+                  ) : null}
+                  {maxCmd > 0 ? (
+                    <View
+                      style={[
+                        styles.statChip,
+                        { backgroundColor: theme.chipBg, borderColor: theme.chipBorder },
+                        cmdWarn && styles.statWarn,
+                      ]}>
+                      <Text style={[styles.statText, { color: theme.nameColor }]}>
+                        ⚔ {maxCmd}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
+              ) : null}
+
+              {disabled ? (
+                <View style={styles.fallen}>
+                  <Text style={styles.fallenX}>✕</Text>
+                  <Text style={styles.eliminatedLabel}>CAÍDO</Text>
+                </View>
+              ) : null}
+            </View>
+            <FloatingDelta delta={floatingDelta} />
           </View>
-          <FloatingDelta delta={floatingDelta} />
-        </View>
-      </GestureDetector>
+        </GestureDetector>
       </PanelEffectWrapper>
     </View>
   );
@@ -164,36 +191,37 @@ export function PlayerPanel({
 const styles = StyleSheet.create({
   slot: {
     flex: 1,
-    borderWidth: 1.5,
     borderRadius: radius.lg,
-    backgroundColor: palette.surface,
     overflow: 'hidden',
+    backgroundColor: palette.background,
   },
   eliminated: {
     opacity: opacity.muted,
   },
-  glow: {
-    ...StyleSheet.absoluteFillObject,
-    opacity: 0.12,
+  glowOrb: {
+    position: 'absolute',
+    top: '18%',
+    alignSelf: 'center',
+    width: '70%',
+    height: '35%',
+    borderRadius: radius.full,
+    opacity: 0.22,
   },
   menuBtn: {
     position: 'absolute',
-    top: spacing.xs,
-    right: spacing.xs,
+    top: spacing.sm,
+    right: spacing.sm,
     zIndex: 20,
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: palette.backgroundElevated,
-    borderWidth: 1,
-    borderColor: palette.borderStrong,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0, 0, 0, 0.28)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   menuIcon: {
-    fontSize: 18,
-    color: palette.textSecondary,
-    lineHeight: 20,
+    fontSize: 16,
+    lineHeight: 18,
   },
   touchArea: {
     flex: 1,
@@ -202,124 +230,95 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: spacing.sm,
+    padding: spacing.md,
+    gap: 2,
+  },
+  crownWrap: {
+    position: 'absolute',
+    top: spacing.sm,
+    alignSelf: 'center',
   },
   crown: {
-    fontSize: typography.fontSize.lg,
-    marginBottom: 2,
+    fontSize: typography.fontSize.md,
   },
-  manaStripe: {
-    width: 32,
-    height: 3,
-    borderRadius: 2,
+  manaPip: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: spacing.xs,
-    opacity: 0.9,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
   },
-  seat: {
-    fontFamily: typography.fontFamily.sansSemiBold,
-    fontSize: 9,
-    color: palette.textMuted,
-    letterSpacing: 2,
+  manaSymbol: {
+    fontFamily: typography.fontFamily.sansBold,
+    fontSize: typography.fontSize.sm,
   },
   name: {
     fontFamily: typography.fontFamily.sansSemiBold,
-    fontSize: typography.fontSize.sm,
-    color: palette.textPrimary,
-    maxWidth: '88%',
-    marginTop: 2,
+    fontSize: typography.fontSize.md,
+    maxWidth: '90%',
+    letterSpacing: 0.3,
   },
   life: {
     fontFamily: typography.fontFamily.monoBold,
-    color: palette.life,
     letterSpacing: typography.letterSpacing.counter,
     marginVertical: spacing.xs,
-    textShadowColor: 'rgba(255,255,255,0.08)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 12,
+    textShadowColor: 'rgba(0, 0, 0, 0.35)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 8,
   },
   lifeLow: {
     color: palette.warning,
   },
   lifeEliminated: {
-    color: palette.eliminated,
     textDecorationLine: 'line-through',
+    opacity: 0.7,
+  },
+  seat: {
+    fontFamily: typography.fontFamily.sansSemiBold,
+    fontSize: 9,
+    letterSpacing: 2.5,
+    marginTop: 2,
   },
   statsRow: {
     flexDirection: 'row',
     gap: spacing.xs,
-    marginTop: 2,
+    marginTop: spacing.sm,
   },
   statChip: {
     paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
+    paddingVertical: 3,
     borderRadius: radius.full,
-    backgroundColor: palette.backgroundElevated,
     borderWidth: 1,
-    borderColor: palette.border,
   },
   statWarn: {
     borderColor: palette.commander,
-    backgroundColor: 'rgba(245, 158, 11, 0.12)',
+    backgroundColor: 'rgba(251, 191, 36, 0.2)',
   },
   statDanger: {
     borderColor: palette.poison,
-    backgroundColor: 'rgba(132, 204, 22, 0.12)',
+    backgroundColor: 'rgba(163, 230, 53, 0.18)',
   },
   statText: {
-    fontFamily: typography.fontFamily.mono,
+    fontFamily: typography.fontFamily.monoBold,
     fontSize: typography.fontSize.xs,
-    color: palette.textSecondary,
-  },
-  poisonDrops: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 1,
-    marginTop: 2,
-    maxWidth: 72,
-  },
-  drop: {
-    fontSize: 6,
-    color: palette.poison,
-    lineHeight: 8,
   },
   fallen: {
+    position: 'absolute',
     alignItems: 'center',
-    gap: 2,
-    marginTop: spacing.xs,
+    gap: 4,
   },
   fallenX: {
-    fontSize: typography.fontSize.lg,
+    fontSize: typography.fontSize.xxl,
     color: palette.danger,
+    opacity: 0.85,
   },
   eliminatedLabel: {
     fontFamily: typography.fontFamily.sansBold,
-    fontSize: 9,
+    fontSize: 10,
     color: palette.danger,
-    letterSpacing: 2,
-  },
-  zones: {
-    ...StyleSheet.absoluteFillObject,
-    opacity: 0.1,
-  },
-  zoneTop: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: palette.healGlow,
-  },
-  zoneDivider: {
-    height: 1,
-    backgroundColor: palette.border,
-  },
-  zoneBottom: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: palette.damageGlow,
-  },
-  zoneLabel: {
-    fontFamily: typography.fontFamily.monoBold,
-    fontSize: typography.fontSize.sm,
-    color: palette.textPrimary,
+    letterSpacing: 3,
   },
 });

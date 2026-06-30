@@ -1,6 +1,6 @@
-import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { manaColors, type ManaIdentity, palette, radius, spacing, typography } from '@/theme';
+import { manaColors, type ManaIdentity, palette, spacing, typography } from '@/theme';
 import { MANA_OPTIONS } from '@/store/gameStore';
 
 type ManaIdentityPickerProps = {
@@ -8,9 +8,11 @@ type ManaIdentityPickerProps = {
   onChange: (identity: ManaIdentity) => void;
 };
 
+const PIP_SIZE = 44;
+
 export function ManaIdentityPicker({ value, onChange }: ManaIdentityPickerProps) {
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
+    <View style={styles.row}>
       {MANA_OPTIONS.map((option) => {
         const selected = value === option.id;
         const color = manaColors[option.id].primary;
@@ -20,51 +22,64 @@ export function ManaIdentityPicker({ value, onChange }: ManaIdentityPickerProps)
           <Pressable
             key={option.id}
             accessibilityRole="button"
+            accessibilityLabel={option.label}
             accessibilityState={{ selected }}
             onPress={() => onChange(option.id)}
-            style={[
-              styles.chip,
-              { backgroundColor: color },
-              selected && styles.chipSelected,
-            ]}>
-            <Text style={[styles.symbol, darkText && styles.symbolDark]}>{option.symbol}</Text>
-            <Text style={[styles.chipLabel, darkText && styles.symbolDark]}>{option.label}</Text>
+            style={({ pressed }) => [styles.pipWrap, pressed && styles.pressed]}>
+            <View
+              style={[
+                styles.pip,
+                { backgroundColor: color },
+                selected && styles.pipSelected,
+              ]}>
+              <Text style={[styles.symbol, darkText && styles.symbolDark]}>
+                {option.symbol}
+              </Text>
+            </View>
           </Pressable>
         );
       })}
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   row: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: spacing.sm,
     paddingVertical: spacing.xs,
   },
-  chip: {
-    minWidth: 88,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.md,
-    borderWidth: 2,
-    borderColor: 'transparent',
-    alignItems: 'center',
-    gap: 2,
+  pipWrap: {
+    borderRadius: PIP_SIZE / 2,
   },
-  chipSelected: {
+  pressed: {
+    opacity: 0.85,
+    transform: [{ scale: 0.94 }],
+  },
+  pip: {
+    width: PIP_SIZE,
+    height: PIP_SIZE,
+    borderRadius: PIP_SIZE / 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2.5,
+    borderColor: 'transparent',
+  },
+  pipSelected: {
     borderColor: palette.textPrimary,
+    shadowColor: '#fff',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
   },
   symbol: {
     fontFamily: typography.fontFamily.sansBold,
-    fontSize: typography.fontSize.md,
+    fontSize: 18,
     color: palette.textPrimary,
   },
   symbolDark: {
     color: palette.textInverse,
-  },
-  chipLabel: {
-    fontFamily: typography.fontFamily.sans,
-    fontSize: typography.fontSize.xs,
-    color: palette.textPrimary,
   },
 });

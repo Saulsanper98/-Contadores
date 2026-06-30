@@ -28,7 +28,9 @@ export function CounterRow({
         <Text style={styles.label}>{label}</Text>
       </View>
       <View style={styles.controls}>
-        <Pressable onPress={onDecrement} style={styles.btn}>
+        <Pressable
+          onPress={onDecrement}
+          style={({ pressed }) => [styles.btn, pressed && styles.btnPressed]}>
           <Text style={styles.btnText}>−</Text>
         </Pressable>
         <Text
@@ -39,7 +41,9 @@ export function CounterRow({
           ]}>
           {value}
         </Text>
-        <Pressable onPress={onIncrement} style={styles.btn}>
+        <Pressable
+          onPress={onIncrement}
+          style={({ pressed }) => [styles.btn, pressed && styles.btnPressed]}>
           <Text style={styles.btnText}>+</Text>
         </Pressable>
       </View>
@@ -58,10 +62,10 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
+    gap: spacing.sm,
   },
   icon: {
-    fontSize: typography.fontSize.md,
+    fontSize: typography.fontSize.lg,
   },
   label: {
     fontFamily: typography.fontFamily.sansMedium,
@@ -74,14 +78,18 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   btn: {
-    width: 40,
-    height: 40,
+    width: 42,
+    height: 42,
     borderRadius: radius.md,
     backgroundColor: palette.backgroundElevated,
     borderWidth: 1,
-    borderColor: palette.borderStrong,
+    borderColor: palette.border,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  btnPressed: {
+    backgroundColor: palette.surfaceHover,
+    transform: [{ scale: 0.94 }],
   },
   btnText: {
     fontFamily: typography.fontFamily.monoBold,
@@ -89,10 +97,10 @@ const styles = StyleSheet.create({
     color: palette.textPrimary,
   },
   value: {
-    minWidth: 36,
+    minWidth: 40,
     textAlign: 'center',
     fontFamily: typography.fontFamily.monoBold,
-    fontSize: typography.fontSize.lg,
+    fontSize: typography.fontSize.xl,
     color: palette.textPrimary,
   },
   warning: {

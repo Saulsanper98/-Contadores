@@ -29,14 +29,19 @@ export function Button({ label, variant = 'primary', style, disabled, ...props }
 
 const styles = StyleSheet.create({
   base: {
-    minHeight: 52,
-    borderRadius: radius.md,
+    minHeight: 50,
+    borderRadius: radius.lg,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.lg,
   },
   primary: {
     backgroundColor: palette.accent,
+    shadowColor: palette.accent,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 6,
   },
   secondary: {
     backgroundColor: palette.surface,
@@ -47,7 +52,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   pressed: {
-    opacity: 0.85,
+    opacity: 0.88,
+    transform: [{ scale: 0.98 }],
   },
   disabled: {
     opacity: 0.4,
@@ -56,6 +62,7 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.sansSemiBold,
     fontSize: typography.fontSize.md,
     color: palette.textPrimary,
+    letterSpacing: 0.2,
   },
   labelPrimary: {
     color: '#FFFFFF',

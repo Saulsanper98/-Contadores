@@ -1,8 +1,9 @@
 import { StyleSheet, Text, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 
 import { ManaIdentityPicker } from '@/components/setup/ManaIdentityPicker';
 import { TextField } from '@/components/ui/TextField';
-import { manaColors, palette, radius, spacing, typography } from '@/theme';
+import { getManaPanelTheme, palette, radius, spacing, typography } from '@/theme';
 import type { PlayerSetup } from '@/engine/types';
 
 type PlayerConfigCardProps = {
@@ -12,15 +13,20 @@ type PlayerConfigCardProps = {
 };
 
 export function PlayerConfigCard({ index, player, onChange }: PlayerConfigCardProps) {
-  const accent = manaColors[player.manaIdentity];
+  const theme = getManaPanelTheme(player.manaIdentity);
 
   return (
-    <View style={[styles.card, { borderColor: accent.glow }]}>
-      <View style={[styles.accentBar, { backgroundColor: accent.primary }]} />
+    <View style={styles.card}>
+      <LinearGradient
+        colors={[theme.gradient[0], 'transparent']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={styles.gradientAccent}
+      />
       <View style={styles.inner}>
         <View style={styles.header}>
           <Text style={styles.seat}>Jugador {index + 1}</Text>
-          <View style={[styles.dot, { backgroundColor: accent.primary }]} />
+          <View style={[styles.dot, { backgroundColor: theme.accent }]} />
         </View>
 
         <TextField
@@ -44,17 +50,18 @@ export function PlayerConfigCard({ index, player, onChange }: PlayerConfigCardPr
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: radius.lg,
+    borderRadius: radius.xl,
     borderWidth: 1,
+    borderColor: palette.border,
     backgroundColor: palette.surface,
     overflow: 'hidden',
   },
-  accentBar: {
-    height: 3,
+  gradientAccent: {
+    height: 4,
     width: '100%',
   },
   inner: {
-    padding: spacing.md,
+    padding: spacing.lg,
     gap: spacing.md,
   },
   header: {
@@ -68,18 +75,17 @@ const styles = StyleSheet.create({
     color: palette.textPrimary,
   },
   dot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: palette.borderStrong,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
   },
   identityBlock: {
-    gap: spacing.xs,
+    gap: spacing.sm,
   },
   identityLabel: {
     fontFamily: typography.fontFamily.sansMedium,
     fontSize: typography.fontSize.xs,
-    color: palette.textSecondary,
+    color: palette.textMuted,
+    letterSpacing: 0.5,
   },
 });
