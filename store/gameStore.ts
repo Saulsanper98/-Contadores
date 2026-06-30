@@ -20,6 +20,8 @@ import {
   createDefaultSetup,
   createGameFromSetup,
   damageAll,
+  damageOthers,
+  drainOthers,
   eliminatePlayer,
   healAll,
   popSnapshot,
@@ -30,6 +32,9 @@ import {
   setAllLife,
   setMonarch,
 } from '@/engine';
+import type { CombatDamageType } from '@/data/combatTypes';
+import type { PlayerActionId } from '@/data/playerActions';
+import { PRESET_COUNTERS, presetToCounter } from '@/data/presetCounters';
 import type { GameSetup, GameState, GenericCounterDef, ManaIdentity, PlayerSetup } from '@/engine/types';
 
 export type GameToast = {
@@ -51,6 +56,7 @@ interface SetupStore {
   updatePlayer: (playerId: string, patch: Partial<Pick<PlayerSetup, 'name' | 'manaIdentity'>>) => void;
   addGenericCounter: (name: string, icon: string) => void;
   removeGenericCounter: (counterId: string) => void;
+  togglePresetCounter: (presetId: string, enabled: boolean) => void;
   resetToDefaults: () => void;
   loadLastSetup: () => void;
 }
@@ -95,6 +101,17 @@ export const useSetupStore = create<SetupStore>()(
       removeGenericCounter: (counterId) => {
         set((state) => ({ setup: removeGenericCounterDef(state.setup, counterId) }));
       },
+      togglePresetCounter: (presetId, enabled) => {
+        const preset = PRESET_COUNTERS.find((item) => item.presetId === presetId);
+        if (!preset) return;
+        set((state) => {
+          const counterId = `preset-${presetId}`;
+          if (enabled) {
+            return { setup: addGenericCounterDef(state.setup, presetToCounter(preset)) };
+          }
+          return { setup: removeGenericCounterDef(state.setup, counterId) };
+        });
+      },
       resetToDefaults: () => set({ setup: createDefaultSetup(4) }),
       loadLastSetup: () => set({ setup: get().setup }),
     }),
@@ -133,6 +150,15 @@ interface GameStore {
   applyDamageAll: (amount: number) => void;
   applyHealAll: (amount: number) => void;
   applySetAllLife: (life: number) => void;
+  damageOpponents: (sourceId: string, amount: number) => void;
+  drainOpponents: (sourceId: string, amount: number) => void;
+  resolveCombat: (params: {
+    sourceId: string;
+    targetId: string;
+    amount: number;
+    type: CombatDamageType;
+  }) => void;
+  handlePlayerAction: (playerId: string, actionId: PlayerActionId) => void;
 }
 
 let toastCounter = 0;
@@ -291,6 +317,90 @@ export const useGameStore = create<GameStore>()(
 
         applySetAllLife: (life) => {
           mutate((g) => setAllLife(g, life), { globalEffect: 'groupSet' });
+        },
+
+        damageOpponents: (sourceId, amount) => {
+          mutate((g) => damageOthers(g, sourceId, amount), { globalEffect: 'groupDamage' });
+        },
+
+        drainOpponents: (sourceId, amount) => {
+          mutate((g) => drainOthers(g, sourceId, amount), { globalEffect: 'groupDamage' });
+        },
+
+        resolveCombat: ({ sourceId, targetId, amount, type }) => {
+          if (amount <= 0) return;
+
+          mutate(
+            (g) => {
+              let next = g;
+              switch (type) {
+                case 'heal':
+                  next = adjustLife(next, targetId, amount);
+                  break;
+                case 'commander':
+                  next = applyCommanderDamage(next, targetId, sourceId, amount);
+                  break;
+                case 'infect':
+                  next = adjustPoison(next, targetId, amount);
+                  break;
+                case 'lifelink':
+                  next = adjustLife(next, targetId, -amount);
+                  next = adjustLife(next, sourceId, amount);
+                  break;
+                case 'normal':
+                default:
+                  next = adjustLife(next, targetId, -amount);
+                  break;
+              }
+              return next;
+            },
+            {
+              panelEffect: {
+                playerId: targetId,
+                kind: type === 'infect' ? 'poison' : type === 'commander' ? 'commander' : 'damage',
+              },
+            },
+          );
+        },
+
+        handlePlayerAction: (playerId, actionId) => {
+          switch (actionId) {
+            case 'pay-1':
+              get().adjustPlayerLife(playerId, -1);
+              break;
+            case 'pay-2':
+              get().adjustPlayerLife(playerId, -2);
+              break;
+            case 'heal-1':
+              get().adjustPlayerLife(playerId, 1);
+              break;
+            case 'heal-2':
+              get().adjustPlayerLife(playerId, 2);
+              break;
+            case 'damage-all':
+              get().applyDamageAll(1);
+              break;
+            case 'damage-opponents':
+              get().damageOpponents(playerId, 1);
+              break;
+            case 'drain':
+              get().drainOpponents(playerId, 1);
+              break;
+            case 'poison-1':
+              get().adjustPlayerPoison(playerId, 1);
+              break;
+            case 'monarch':
+              get().setPlayerMonarch(playerId);
+              break;
+            case 'eliminate':
+              get().markEliminated(playerId);
+              break;
+            case 'revive':
+              get().markRevived(playerId);
+              break;
+            default:
+              break;
+          }
         },
       };
     },

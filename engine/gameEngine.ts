@@ -228,6 +228,30 @@ export function damageAll(state: GameState, amount: number): GameState {
   );
 }
 
+export function damageOthers(
+  state: GameState,
+  sourceId: PlayerId,
+  amount: number,
+): GameState {
+  return mapActivePlayers(state, (player) => {
+    if (player.id === sourceId) return player;
+    return applyEliminationCheck({
+      ...player,
+      life: player.life - amount,
+    });
+  });
+}
+
+export function drainOthers(
+  state: GameState,
+  sourceId: PlayerId,
+  amount: number,
+): GameState {
+  const opponentCount = state.players.filter((player) => player.id !== sourceId).length;
+  const damaged = damageOthers(state, sourceId, amount);
+  return adjustLife(damaged, sourceId, amount * opponentCount);
+}
+
 export function healAll(state: GameState, amount: number): GameState {
   return mapActivePlayers(state, (player) =>
     applyEliminationCheck({

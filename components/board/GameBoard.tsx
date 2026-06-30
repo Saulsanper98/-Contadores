@@ -1,7 +1,13 @@
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, View, type ViewStyle } from 'react-native';
 
 import type { EffectKind, GlobalEffect, PanelEffect } from '@/animations/effects';
+import {
+  CombatDragOverlay,
+  findPanelAtPoint,
+  type CombatDragState,
+  type PanelBounds,
+} from '@/components/board/CombatDragOverlay';
 import { PlayerPanel } from '@/components/board/PlayerPanel';
 import { getBoardGrid } from '@/engine/seatLayouts';
 import type { GameState } from '@/engine/types';
@@ -14,6 +20,7 @@ type GameBoardProps = {
   reducedMotion?: boolean;
   onLifeChange: (playerId: string, delta: number) => void;
   onOpenActions: (playerId: string) => void;
+  onCombatReady: (sourceId: string, targetId: string) => void;
   onClearPanelEffect: () => void;
   onClearGlobalEffect: () => void;
 };
@@ -33,10 +40,14 @@ export function GameBoard({
   reducedMotion,
   onLifeChange,
   onOpenActions,
+  onCombatReady,
   onClearPanelEffect,
   onClearGlobalEffect,
 }: GameBoardProps) {
   const grid = useMemo(() => getBoardGrid(game.players.length), [game.players.length]);
+  const boardRef = useRef<View>(null);
+  const panelBoundsRef = useRef<PanelBounds[]>([]);
+  const [combatDrag, setCombatDrag] = useState<CombatDragState>(null);
 
   useEffect(() => {
     if (!globalEffect) return;
@@ -47,6 +58,31 @@ export function GameBoard({
   const handleLifeChange = useCallback(
     (playerId: string, delta: number) => onLifeChange(playerId, delta),
     [onLifeChange],
+  );
+
+  const registerPanelBounds = useCallback((bounds: PanelBounds) => {
+    const list = panelBoundsRef.current.filter((b) => b.playerId !== bounds.playerId);
+    panelBoundsRef.current = [...list, bounds];
+  }, []);
+
+  const handleAttackDragStart = useCallback((sourceId: string, x: number, y: number) => {
+    setCombatDrag({ sourceId, x, y, targetId: null });
+  }, []);
+
+  const handleAttackDragMove = useCallback((sourceId: string, x: number, y: number) => {
+    const targetId = findPanelAtPoint(panelBoundsRef.current, x, y, sourceId);
+    setCombatDrag({ sourceId, x, y, targetId });
+  }, []);
+
+  const handleAttackDragEnd = useCallback(
+    (sourceId: string, x: number, y: number) => {
+      const targetId = findPanelAtPoint(panelBoundsRef.current, x, y, sourceId);
+      setCombatDrag(null);
+      if (targetId) {
+        onCombatReady(sourceId, targetId);
+      }
+    },
+    [onCombatReady],
   );
 
   const cellStyle = (row: number, col: number, rowSpan: number, colSpan: number): ViewStyle => ({
@@ -73,15 +109,18 @@ export function GameBoard({
   };
 
   return (
-    <View style={styles.board}>
+    <View ref={boardRef} style={styles.board} collapsable={false}>
       <View style={styles.tableCenter} pointerEvents="none">
         <View style={styles.tableRing} />
       </View>
+
       {grid.seats.map((seat) => {
         const player = game.players[seat.playerIndex];
         if (!player) return null;
 
         const fx = resolveEffect(player.id, seat.playerIndex);
+        const isDragTarget = combatDrag?.targetId === player.id;
+        const isDragSource = combatDrag?.sourceId === player.id;
 
         return (
           <View
@@ -96,6 +135,11 @@ export function GameBoard({
               effectId={fx.id}
               effectKind={fx.kind}
               reducedMotion={reducedMotion}
+              combatHighlight={isDragTarget ? 'target' : isDragSource ? 'source' : null}
+              onRegisterBounds={registerPanelBounds}
+              onAttackDragStart={(x, y) => handleAttackDragStart(player.id, x, y)}
+              onAttackDragMove={(x, y) => handleAttackDragMove(player.id, x, y)}
+              onAttackDragEnd={(x, y) => handleAttackDragEnd(player.id, x, y)}
               onEffectEnd={() => {
                 if (panelEffect?.playerId === player.id) onClearPanelEffect();
               }}
@@ -105,6 +149,8 @@ export function GameBoard({
           </View>
         );
       })}
+
+      <CombatDragOverlay drag={combatDrag} panelBounds={panelBoundsRef.current} />
     </View>
   );
 }

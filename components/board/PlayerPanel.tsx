@@ -1,9 +1,10 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { LayoutChangeEvent, Pressable, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GestureDetector } from 'react-native-gesture-handler';
 
 import { PanelEffectWrapper } from '@/components/animations/PanelEffectWrapper';
+import type { PanelBounds } from '@/components/board/CombatDragOverlay';
 import { FloatingDelta } from '@/components/board/FloatingDelta';
 import { useLifeCounterGestures } from '@/hooks/useLifeCounterGestures';
 import type { EffectKind } from '@/animations/effects';
@@ -25,10 +26,15 @@ type PlayerPanelProps = {
   effectId?: number;
   effectKind?: EffectKind | null;
   reducedMotion?: boolean;
+  combatHighlight?: 'source' | 'target' | null;
   onEffectEnd?: () => void;
   style?: object;
   onLifeChange: (playerId: string, delta: number) => void;
   onOpenActions: (playerId: string) => void;
+  onRegisterBounds?: (bounds: PanelBounds) => void;
+  onAttackDragStart?: (absoluteX: number, absoluteY: number) => void;
+  onAttackDragMove?: (absoluteX: number, absoluteY: number) => void;
+  onAttackDragEnd?: (absoluteX: number, absoluteY: number) => void;
 };
 
 export function PlayerPanel({
@@ -40,11 +46,17 @@ export function PlayerPanel({
   effectId = 0,
   effectKind = null,
   reducedMotion,
+  combatHighlight,
   onEffectEnd,
   style,
   onLifeChange,
   onOpenActions,
+  onRegisterBounds,
+  onAttackDragStart,
+  onAttackDragMove,
+  onAttackDragEnd,
 }: PlayerPanelProps) {
+  const viewRef = useRef<View>(null);
   const [panelHeight, setPanelHeight] = useState(0);
   const disabled = player.isEliminated;
   const theme = getManaPanelTheme(player.manaIdentity);
@@ -66,10 +78,28 @@ export function PlayerPanel({
     panelHeight,
     disabled,
     onCommitDelta,
+    onAttackDragStart,
+    onAttackDragMove,
+    onAttackDragEnd,
   });
 
+  const reportBounds = useCallback(() => {
+    viewRef.current?.measureInWindow((x, y, width, height) => {
+      onRegisterBounds?.({ playerId: player.id, x, y, width, height });
+    });
+  }, [onRegisterBounds, player.id]);
+
   return (
-    <View style={[styles.slot, style, disabled && styles.eliminated]}>
+    <View
+      ref={viewRef}
+      style={[
+        styles.slot,
+        style,
+        disabled && styles.eliminated,
+        combatHighlight === 'target' && styles.highlightTarget,
+        combatHighlight === 'source' && styles.highlightSource,
+      ]}
+      onLayout={reportBounds}>
       <PanelEffectWrapper
         effectId={effectId}
         effectKind={effectKind}
@@ -194,6 +224,14 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     overflow: 'hidden',
     backgroundColor: palette.background,
+  },
+  highlightTarget: {
+    borderWidth: 2,
+    borderColor: palette.accentSecondary,
+  },
+  highlightSource: {
+    borderWidth: 2,
+    borderColor: palette.accent,
   },
   eliminated: {
     opacity: opacity.muted,

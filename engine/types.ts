@@ -10,6 +10,7 @@ export interface GenericCounterDef {
   id: string;
   name: string;
   icon: string;
+  presetId?: string;
 }
 
 export interface PlayerSetup {

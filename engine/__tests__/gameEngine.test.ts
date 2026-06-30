@@ -4,6 +4,8 @@ import {
   applyCommanderDamage,
   createDefaultSetup,
   createGameFromSetup,
+  damageOthers,
+  drainOthers,
   getEliminationReason,
 } from '@/engine';
 
@@ -80,5 +82,25 @@ describe('Commander game engine', () => {
     expect(player.commanderDamageFrom[attackerA]).toBe(15);
     expect(player.commanderDamageFrom[attackerB]).toBe(15);
     expect(player.isEliminated).toBe(false);
+  });
+
+  it('damages opponents but not the source player', () => {
+    const source = baseState.players[0].id;
+    const next = damageOthers(baseState, source, 3);
+
+    expect(next.players.find((p) => p.id === source)!.life).toBe(40);
+    for (const player of next.players.filter((p) => p.id !== source)) {
+      expect(player.life).toBe(37);
+    }
+  });
+
+  it('drains life from opponents to the source player', () => {
+    const source = baseState.players[0].id;
+    const next = drainOthers(baseState, source, 2);
+
+    expect(next.players.find((p) => p.id === source)!.life).toBe(46);
+    for (const player of next.players.filter((p) => p.id !== source)) {
+      expect(player.life).toBe(38);
+    }
   });
 });

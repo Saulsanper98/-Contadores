@@ -6,15 +6,23 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { GameBoard } from '@/components/board/GameBoard';
+import { CombatActionSheet } from '@/components/game/CombatActionSheet';
 import { GameMenuSheet } from '@/components/game/GameMenuSheet';
 import { GameToastOverlay } from '@/components/game/GameToastOverlay';
 import { GroupToolsSheet } from '@/components/game/GroupToolsSheet';
 import { PlayerActionSheet } from '@/components/game/PlayerActionSheet';
+import type { PlayerActionId } from '@/data/playerActions';
 import { Button } from '@/components/ui/Button';
 import { Screen } from '@/components/ui/Screen';
+import { getBoardGrid } from '@/engine/seatLayouts';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { palette, radius, spacing, typography } from '@/theme';
 import { useGameStore } from '@/store/gameStore';
+
+type CombatSession = {
+  sourceId: string;
+  targetId: string;
+};
 
 export default function GameScreen() {
   useKeepAwake();
@@ -39,17 +47,16 @@ export default function GameScreen() {
   const dealCommanderDamage = useGameStore((state) => state.dealCommanderDamage);
   const adjustPlayerPoison = useGameStore((state) => state.adjustPlayerPoison);
   const adjustPlayerCounter = useGameStore((state) => state.adjustPlayerCounter);
-  const setPlayerMonarch = useGameStore((state) => state.setPlayerMonarch);
-  const clearMonarch = useGameStore((state) => state.clearMonarch);
-  const markEliminated = useGameStore((state) => state.markEliminated);
-  const markRevived = useGameStore((state) => state.markRevived);
   const applyDamageAll = useGameStore((state) => state.applyDamageAll);
   const applyHealAll = useGameStore((state) => state.applyHealAll);
   const applySetAllLife = useGameStore((state) => state.applySetAllLife);
+  const resolveCombat = useGameStore((state) => state.resolveCombat);
+  const handlePlayerAction = useGameStore((state) => state.handlePlayerAction);
 
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [groupOpen, setGroupOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [combatSession, setCombatSession] = useState<CombatSession | null>(null);
 
   const canUndo = past.length > 0;
 
@@ -57,6 +64,23 @@ export default function GameScreen() {
     () => game?.players.find((p) => p.id === selectedPlayerId) ?? null,
     [game, selectedPlayerId],
   );
+
+  const combatSource = useMemo(
+    () => game?.players.find((p) => p.id === combatSession?.sourceId) ?? null,
+    [game, combatSession],
+  );
+
+  const combatTarget = useMemo(
+    () => game?.players.find((p) => p.id === combatSession?.targetId) ?? null,
+    [game, combatSession],
+  );
+
+  const combatRotation = useMemo(() => {
+    if (!game || !combatSession) return 0;
+    const grid = getBoardGrid(game.players.length);
+    const seat = grid.seats.find((s) => game.players[s.playerIndex]?.id === combatSession.sourceId);
+    return seat?.rotation ?? 0;
+  }, [game, combatSession]);
 
   const handleUndo = useCallback(() => {
     const ok = undo();
@@ -70,6 +94,17 @@ export default function GameScreen() {
     clearGame();
     router.replace('/');
   }, [clearGame]);
+
+  const handleCombatReady = useCallback((sourceId: string, targetId: string) => {
+    setCombatSession({ sourceId, targetId });
+  }, []);
+
+  const handlePlayerSheetAction = useCallback(
+    (playerId: string, actionId: PlayerActionId) => {
+      handlePlayerAction(playerId, actionId);
+    },
+    [handlePlayerAction],
+  );
 
   if (!game) {
     return (
@@ -119,6 +154,7 @@ export default function GameScreen() {
         reducedMotion={reducedMotion}
         onLifeChange={adjustPlayerLife}
         onOpenActions={setSelectedPlayerId}
+        onCombatReady={handleCombatReady}
         onClearPanelEffect={clearPanelEffect}
         onClearGlobalEffect={clearGlobalEffect}
       />
@@ -128,14 +164,23 @@ export default function GameScreen() {
         game={game}
         player={selectedPlayer}
         onClose={() => setSelectedPlayerId(null)}
+        onAction={handlePlayerSheetAction}
         onCommanderDamage={dealCommanderDamage}
         onPoison={adjustPlayerPoison}
         onCounter={adjustPlayerCounter}
-        onMonarch={setPlayerMonarch}
-        onClearMonarch={clearMonarch}
-        onEliminate={markEliminated}
-        onRevive={markRevived}
+        onToast={showToast}
       />
+
+      {combatSource && combatTarget ? (
+        <CombatActionSheet
+          visible={combatSession !== null}
+          source={combatSource}
+          target={combatTarget}
+          sourceRotation={combatRotation}
+          onClose={() => setCombatSession(null)}
+          onResolve={resolveCombat}
+        />
+      ) : null}
 
       <GroupToolsSheet
         visible={groupOpen}

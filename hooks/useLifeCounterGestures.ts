@@ -11,12 +11,18 @@ type UseLifeCounterGesturesOptions = {
   panelHeight: number;
   disabled?: boolean;
   onCommitDelta: (delta: number) => void;
+  onAttackDragStart?: (absoluteX: number, absoluteY: number) => void;
+  onAttackDragMove?: (absoluteX: number, absoluteY: number) => void;
+  onAttackDragEnd?: (absoluteX: number, absoluteY: number) => void;
 };
 
 export function useLifeCounterGestures({
   panelHeight,
   disabled = false,
   onCommitDelta,
+  onAttackDragStart,
+  onAttackDragMove,
+  onAttackDragEnd,
 }: UseLifeCounterGesturesOptions) {
   const [floatingDelta, setFloatingDelta] = useState<number | null>(null);
   const pendingRef = useRef(0);
@@ -124,7 +130,21 @@ export function useLifeCounterGestures({
     [commitPending, disabled, handlePanUpdate],
   );
 
-  const gesture = Gesture.Exclusive(
+  const lifePan = Gesture.Pan()
+    .activeOffsetY([-12, 12])
+    .failOffsetX([-28, 28])
+    .enabled(!disabled)
+    .onStart(() => {
+      runOnJS(handlePanStart)();
+    })
+    .onUpdate((event) => {
+      runOnJS(handlePanUpdate)(event.translationY);
+    })
+    .onEnd((event) => {
+      runOnJS(handlePanEnd)(event.translationY);
+    });
+
+  const lifeExclusive = Gesture.Exclusive(
     Gesture.LongPress()
       .minDuration(280)
       .enabled(!disabled)
@@ -134,24 +154,32 @@ export function useLifeCounterGestures({
       .onFinalize(() => {
         runOnJS(commitPending)();
       }),
-    Gesture.Pan()
-      .activeOffsetY([-12, 12])
-      .enabled(!disabled)
-      .onStart(() => {
-        runOnJS(handlePanStart)();
-      })
-      .onUpdate((event) => {
-        runOnJS(handlePanUpdate)(event.translationY);
-      })
-      .onEnd((event) => {
-        runOnJS(handlePanEnd)(event.translationY);
-      }),
+    lifePan,
     Gesture.Tap()
       .enabled(!disabled)
       .onEnd((event) => {
         runOnJS(handleTap)(event.y);
       }),
   );
+
+  const attackPan =
+    onAttackDragStart && onAttackDragMove && onAttackDragEnd
+      ? Gesture.Pan()
+          .activeOffsetX([-24, 24])
+          .failOffsetY([-20, 20])
+          .enabled(!disabled)
+          .onStart((event) => {
+            runOnJS(onAttackDragStart)(event.absoluteX, event.absoluteY);
+          })
+          .onUpdate((event) => {
+            runOnJS(onAttackDragMove)(event.absoluteX, event.absoluteY);
+          })
+          .onEnd((event) => {
+            runOnJS(onAttackDragEnd)(event.absoluteX, event.absoluteY);
+          })
+      : null;
+
+  const gesture = attackPan ? Gesture.Race(attackPan, lifeExclusive) : lifeExclusive;
 
   return { gesture, floatingDelta };
 }

@@ -22,6 +22,7 @@ export default function SetupScreen() {
   const updatePlayer = useSetupStore((state) => state.updatePlayer);
   const addGenericCounter = useSetupStore((state) => state.addGenericCounter);
   const removeGenericCounter = useSetupStore((state) => state.removeGenericCounter);
+  const togglePresetCounter = useSetupStore((state) => state.togglePresetCounter);
   const startGame = useGameStore((state) => state.startGame);
 
   const [toolResult, setToolResult] = useState<string | null>(null);
@@ -86,6 +87,7 @@ export default function SetupScreen() {
           counters={setup.genericCounters}
           onAdd={addGenericCounter}
           onRemove={removeGenericCounter}
+          onTogglePreset={togglePresetCounter}
         />
 
         <Section title="Antes de empezar">

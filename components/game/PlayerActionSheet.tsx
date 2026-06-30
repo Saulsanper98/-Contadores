@@ -1,28 +1,30 @@
 import { useMemo, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { CounterGrid } from '@/components/game/CounterGrid';
+import { PlayerActionGrid } from '@/components/game/PlayerActionGrid';
+import type { PlayerActionId } from '@/data/playerActions';
 import { CounterRow } from '@/components/ui/CounterRow';
 import { ManaPip } from '@/components/ui/ManaPip';
-import { Section } from '@/components/ui/Section';
 import { Sheet } from '@/components/ui/Sheet';
-import { Button } from '@/components/ui/Button';
 import { getCommanderDamage, isCommanderDanger, isPoisonDanger } from '@/engine';
+import { flipCoin, rollD6, rollD20 } from '@/engine/tools';
 import type { GameState, PlayerGameState } from '@/engine/types';
 import { MANA_OPTIONS } from '@/store/gameStore';
-import { layout, manaColors, palette, radius, spacing, typography } from '@/theme';
+import { layout, palette, radius, spacing, typography } from '@/theme';
+
+type Tab = 'actions' | 'counters';
 
 type PlayerActionSheetProps = {
   visible: boolean;
   game: GameState;
   player: PlayerGameState | null;
   onClose: () => void;
+  onAction: (playerId: string, actionId: PlayerActionId) => void;
   onCommanderDamage: (targetId: string, sourceId: string, amount: number) => void;
   onPoison: (playerId: string, delta: number) => void;
   onCounter: (playerId: string, counterId: string, delta: number) => void;
-  onMonarch: (playerId: string) => void;
-  onClearMonarch: () => void;
-  onEliminate: (playerId: string) => void;
-  onRevive: (playerId: string) => void;
+  onToast: (title: string, subtitle?: string) => void;
 };
 
 export function PlayerActionSheet({
@@ -30,14 +32,13 @@ export function PlayerActionSheet({
   game,
   player,
   onClose,
+  onAction,
   onCommanderDamage,
   onPoison,
   onCounter,
-  onMonarch,
-  onClearMonarch,
-  onEliminate,
-  onRevive,
+  onToast,
 }: PlayerActionSheetProps) {
+  const [tab, setTab] = useState<Tab>('actions');
   const [commanderSourceId, setCommanderSourceId] = useState<string | null>(null);
 
   const opponents = useMemo(() => {
@@ -47,134 +48,180 @@ export function PlayerActionSheet({
 
   if (!player) return null;
 
+  const seatIndex = game.players.findIndex((p) => p.id === player.id) + 1;
   const isMonarch = game.monarchPlayerId === player.id;
   const poisonDanger = isPoisonDanger(player.poison);
   const commanderDanger = isCommanderDanger(player);
 
-  const confirmEliminate = () => {
-    Alert.alert(
-      'Eliminar jugador',
-      `¿Marcar a ${player.name} como eliminado?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: () => {
-            onEliminate(player.id);
-            onClose();
+  const handleGridAction = (actionId: PlayerActionId) => {
+    if (actionId === 'roll-d6') {
+      onToast(String(rollD6()), 'Dado D6');
+      return;
+    }
+    if (actionId === 'roll-d20') {
+      onToast(String(rollD20()), 'Dado D20');
+      return;
+    }
+    if (actionId === 'eliminate') {
+      Alert.alert(
+        'Eliminar jugador',
+        `¿Marcar a ${player.name} como eliminado?`,
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          {
+            text: 'Eliminar',
+            style: 'destructive',
+            onPress: () => {
+              onAction(player.id, actionId);
+              onClose();
+            },
           },
-        },
-      ],
-    );
+        ],
+      );
+      return;
+    }
+    onAction(player.id, actionId);
   };
 
   return (
     <Sheet
       visible={visible}
       title={player.name}
-      subtitle={`${player.life} vidas · Asiento ${game.players.findIndex((p) => p.id === player.id) + 1}`}
+      subtitle={`${player.life} vidas · Asiento ${seatIndex}`}
       onClose={onClose}>
-      <Section title="Daño de comandante">
-        <Text style={styles.hint}>Selecciona el oponente atacante</Text>
-        <View style={styles.opponentRow}>
-          {opponents.map((opponent) => {
-            const dmg = getCommanderDamage(player, opponent.id);
-            const selected = commanderSourceId === opponent.id;
-            const symbol = MANA_OPTIONS.find((m) => m.id === opponent.manaIdentity)?.symbol ?? '?';
+      <View style={styles.tabBar}>
+        <Pressable
+          onPress={() => setTab('actions')}
+          style={[styles.tab, tab === 'actions' && styles.tabActive]}>
+          <Text style={[styles.tabText, tab === 'actions' && styles.tabTextActive]}>
+            Acciones
+          </Text>
+        </Pressable>
+        <Pressable
+          onPress={() => setTab('counters')}
+          style={[styles.tab, tab === 'counters' && styles.tabActive]}>
+          <Text style={[styles.tabText, tab === 'counters' && styles.tabTextActive]}>
+            Contadores
+          </Text>
+        </Pressable>
+      </View>
 
-            return (
-              <Pressable
-                key={opponent.id}
-                onPress={() => setCommanderSourceId(opponent.id)}
-                style={[styles.opponentChip, selected && styles.opponentSelected]}>
-                <ManaPip identity={opponent.manaIdentity} label={symbol} selected={selected} />
-                <Text style={styles.opponentName} numberOfLines={1}>
-                  {opponent.name}
-                </Text>
-                <Text
-                  style={[
-                    styles.opponentDmg,
-                    dmg >= layout.commanderDamageLethal - 3 && styles.dangerText,
-                  ]}>
-                  {dmg}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-        {commanderSourceId ? (
-          <CounterRow
-            label="Daño de este comandante"
-            icon="⚔"
-            value={getCommanderDamage(player, commanderSourceId)}
-            danger={commanderDanger}
-            warning={getCommanderDamage(player, commanderSourceId) >= 18}
-            onDecrement={() => onCommanderDamage(player.id, commanderSourceId, -1)}
-            onIncrement={() => onCommanderDamage(player.id, commanderSourceId, 1)}
+      {tab === 'actions' ? (
+        <View style={styles.section}>
+          <PlayerActionGrid
+            onAction={handleGridAction}
+            isEliminated={player.isEliminated}
+            isMonarch={isMonarch}
+            hiddenActions={['commander-damage']}
           />
-        ) : null}
-        {commanderDanger ? (
-          <Text style={styles.alert}>⚠ Cerca del límite de 21 de daño de comandante</Text>
-        ) : null}
-      </Section>
+        </View>
+      ) : (
+        <View style={styles.section}>
+          <CounterGrid
+            counters={game.setup.genericCounters}
+            player={player}
+            onAdjust={(counterId, delta) => onCounter(player.id, counterId, delta)}
+          />
+        </View>
+      )}
 
-      <Section title="Veneno">
+      <View style={styles.divider} />
+
+      <Text style={styles.sectionLabel}>Daño de comandante</Text>
+      <Text style={styles.hint}>Oponente atacante</Text>
+      <View style={styles.opponentRow}>
+        {opponents.map((opponent) => {
+          const dmg = getCommanderDamage(player, opponent.id);
+          const selected = commanderSourceId === opponent.id;
+          const symbol = MANA_OPTIONS.find((m) => m.id === opponent.manaIdentity)?.symbol ?? '?';
+
+          return (
+            <Pressable
+              key={opponent.id}
+              onPress={() => setCommanderSourceId(opponent.id)}
+              style={[styles.opponentChip, selected && styles.opponentSelected]}>
+              <ManaPip identity={opponent.manaIdentity} label={symbol} selected={selected} />
+              <Text style={styles.opponentName} numberOfLines={1}>
+                {opponent.name}
+              </Text>
+              <Text
+                style={[
+                  styles.opponentDmg,
+                  dmg >= layout.commanderDamageLethal - 3 && styles.dangerText,
+                ]}>
+                {dmg}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+      {commanderSourceId ? (
         <CounterRow
-          label="Contadores de veneno"
-          icon="☠"
-          value={player.poison}
-          danger={player.poison >= layout.poisonLethal}
-          warning={poisonDanger}
-          onDecrement={() => onPoison(player.id, -1)}
-          onIncrement={() => onPoison(player.id, 1)}
+          label="Daño de este comandante"
+          icon="⚔"
+          value={getCommanderDamage(player, commanderSourceId)}
+          danger={commanderDanger}
+          warning={getCommanderDamage(player, commanderSourceId) >= 18}
+          onDecrement={() => onCommanderDamage(player.id, commanderSourceId, -1)}
+          onIncrement={() => onCommanderDamage(player.id, commanderSourceId, 1)}
         />
-        {poisonDanger ? (
-          <Text style={styles.alert}>⚠ Cerca del límite de 10 veneno</Text>
-        ) : null}
-      </Section>
-
-      {game.setup.genericCounters.length > 0 ? (
-        <Section title="Contadores">
-          {game.setup.genericCounters.map((def) => {
-            const state = player.counters.find((c) => c.defId === def.id);
-            return (
-              <CounterRow
-                key={def.id}
-                label={def.name}
-                icon={def.icon}
-                value={state?.value ?? 0}
-                onDecrement={() => onCounter(player.id, def.id, -1)}
-                onIncrement={() => onCounter(player.id, def.id, 1)}
-              />
-            );
-          })}
-        </Section>
       ) : null}
 
-      <Section title="Monarca">
-        <View style={styles.monarchRow}>
-          <Text style={styles.monarchLabel}>{isMonarch ? '👑 Es el monarca' : 'Sin monarca'}</Text>
-          <Button
-            label={isMonarch ? 'Quitar corona' : 'Hacer monarca'}
-            variant={isMonarch ? 'secondary' : 'primary'}
-            onPress={() => (isMonarch ? onClearMonarch() : onMonarch(player.id))}
-          />
-        </View>
-      </Section>
-
-      <Section title="Estado">
-        {player.isEliminated ? (
-          <Button label="Revivir jugador" onPress={() => { onRevive(player.id); onClose(); }} />
-        ) : (
-          <Button label="Eliminar jugador" variant="secondary" onPress={confirmEliminate} />
-        )}
-      </Section>
+      <Text style={styles.sectionLabel}>Veneno</Text>
+      <CounterRow
+        label="Contadores de veneno"
+        icon="☠"
+        value={player.poison}
+        danger={player.poison >= layout.poisonLethal}
+        warning={poisonDanger}
+        onDecrement={() => onPoison(player.id, -1)}
+        onIncrement={() => onPoison(player.id, 1)}
+      />
     </Sheet>
   );
 }
 
 const styles = StyleSheet.create({
+  tabBar: {
+    flexDirection: 'row',
+    backgroundColor: palette.backgroundElevated,
+    borderRadius: radius.lg,
+    padding: 4,
+    gap: 4,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md,
+    alignItems: 'center',
+  },
+  tabActive: {
+    backgroundColor: palette.surface,
+  },
+  tabText: {
+    fontFamily: typography.fontFamily.sansMedium,
+    fontSize: typography.fontSize.sm,
+    color: palette.textMuted,
+  },
+  tabTextActive: {
+    color: palette.textPrimary,
+  },
+  section: {
+    gap: spacing.sm,
+  },
+  sectionLabel: {
+    fontFamily: typography.fontFamily.sansSemiBold,
+    fontSize: 10,
+    letterSpacing: 2,
+    color: palette.textMuted,
+    textTransform: 'uppercase',
+    marginTop: spacing.sm,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: palette.border,
+    marginVertical: spacing.sm,
+  },
   hint: {
     fontFamily: typography.fontFamily.sans,
     fontSize: typography.fontSize.sm,
@@ -212,18 +259,5 @@ const styles = StyleSheet.create({
   },
   dangerText: {
     color: palette.danger,
-  },
-  alert: {
-    fontFamily: typography.fontFamily.sansMedium,
-    fontSize: typography.fontSize.sm,
-    color: palette.warning,
-  },
-  monarchRow: {
-    gap: spacing.md,
-  },
-  monarchLabel: {
-    fontFamily: typography.fontFamily.sansSemiBold,
-    fontSize: typography.fontSize.md,
-    color: palette.monarch,
   },
 });
