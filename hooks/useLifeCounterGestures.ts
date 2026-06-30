@@ -6,13 +6,17 @@ import { layout } from '@/theme/tokens';
 
 const SWIPE_SMALL_THRESHOLD = 48;
 const SWIPE_LARGE_THRESHOLD = 110;
-const COMBAT_DRAG_THRESHOLD = 22;
 
 type UseLifeCounterGesturesOptions = {
   panelHeight: number;
   disabled?: boolean;
   onCommitDelta: (delta: number) => void;
-  onAttackDragStart?: (absoluteX: number, absoluteY: number) => void;
+  onTryCombatStart?: (
+    absoluteX: number,
+    absoluteY: number,
+    translationX: number,
+    translationY: number,
+  ) => boolean;
   onAttackDragMove?: (absoluteX: number, absoluteY: number) => void;
   onAttackDragEnd?: (absoluteX: number, absoluteY: number) => void;
 };
@@ -21,7 +25,7 @@ export function useLifeCounterGestures({
   panelHeight,
   disabled = false,
   onCommitDelta,
-  onAttackDragStart,
+  onTryCombatStart,
   onAttackDragMove,
   onAttackDragEnd,
 }: UseLifeCounterGesturesOptions) {
@@ -31,7 +35,7 @@ export function useLifeCounterGestures({
   const intervalMsRef = useRef<number>(layout.longPressIntervalMs);
   const panBaseRef = useRef(0);
   const signRef = useRef<1 | -1>(1);
-  const combatModeRef = useRef(false);
+  const combatActiveRef = useRef(false);
 
   const clearRepeat = useCallback(() => {
     if (repeatTimerRef.current) {
@@ -118,69 +122,85 @@ export function useLifeCounterGestures({
     [disabled, swipeMagnitude],
   );
 
-  const handlePanStart = useCallback(() => {
+  const handleGestureStart = useCallback(() => {
     panBaseRef.current = pendingRef.current;
-    combatModeRef.current = false;
+    combatActiveRef.current = false;
   }, []);
 
-  const handlePanEnd = useCallback(
-    (translationY: number) => {
+  const handleGestureUpdate = useCallback(
+    (absoluteX: number, absoluteY: number, translationX: number, translationY: number) => {
       if (disabled) return;
+
+      if (!combatActiveRef.current && onTryCombatStart) {
+        const started = onTryCombatStart(absoluteX, absoluteY, translationX, translationY);
+        if (started) combatActiveRef.current = true;
+      }
+
+      if (combatActiveRef.current) {
+        onAttackDragMove?.(absoluteX, absoluteY);
+        return;
+      }
+
+      handlePanUpdate(translationY);
+    },
+    [disabled, handlePanUpdate, onAttackDragMove, onTryCombatStart],
+  );
+
+  const handleGestureEnd = useCallback(
+    (
+      absoluteX: number,
+      absoluteY: number,
+      translationX: number,
+      translationY: number,
+    ) => {
+      if (disabled) return;
+
+      if (!combatActiveRef.current && onTryCombatStart) {
+        const started = onTryCombatStart(
+          absoluteX,
+          absoluteY,
+          translationX,
+          translationY,
+        );
+        if (started) combatActiveRef.current = true;
+      }
+
+      if (combatActiveRef.current) {
+        onAttackDragMove?.(absoluteX, absoluteY);
+        onAttackDragEnd?.(absoluteX, absoluteY);
+        combatActiveRef.current = false;
+        panBaseRef.current = 0;
+        return;
+      }
+
       handlePanUpdate(translationY);
       commitPending();
       panBaseRef.current = 0;
     },
-    [commitPending, disabled, handlePanUpdate],
-  );
-
-  const maybeStartCombat = useCallback(
-    (absoluteX: number, absoluteY: number, translationX: number, translationY: number) => {
-      if (combatModeRef.current || !onAttackDragStart) return;
-      const dist = Math.hypot(translationX, translationY);
-      if (dist < COMBAT_DRAG_THRESHOLD) return;
-
-      const absX = Math.abs(translationX);
-      const absY = Math.abs(translationY);
-      if (absX >= absY * 0.45) {
-        combatModeRef.current = true;
-        onAttackDragStart(absoluteX, absoluteY);
-      }
-    },
-    [onAttackDragStart],
+    [commitPending, disabled, handlePanUpdate, onAttackDragEnd, onAttackDragMove, onTryCombatStart],
   );
 
   const unifiedPan = Gesture.Pan()
-    .minDistance(8)
+    .minDistance(6)
     .enabled(!disabled)
     .onStart(() => {
-      runOnJS(handlePanStart)();
+      runOnJS(handleGestureStart)();
     })
     .onUpdate((event) => {
-      if (!combatModeRef.current) {
-        runOnJS(maybeStartCombat)(
-          event.absoluteX,
-          event.absoluteY,
-          event.translationX,
-          event.translationY,
-        );
-      }
-
-      if (combatModeRef.current && onAttackDragMove) {
-        runOnJS(onAttackDragMove)(event.absoluteX, event.absoluteY);
-      } else if (!combatModeRef.current) {
-        runOnJS(handlePanUpdate)(event.translationY);
-      }
+      runOnJS(handleGestureUpdate)(
+        event.absoluteX,
+        event.absoluteY,
+        event.translationX,
+        event.translationY,
+      );
     })
     .onEnd((event) => {
-      if (combatModeRef.current && onAttackDragEnd) {
-        runOnJS(onAttackDragEnd)(event.absoluteX, event.absoluteY);
-        combatModeRef.current = false;
-        return;
-      }
-      runOnJS(handlePanEnd)(event.translationY);
-    })
-    .onFinalize(() => {
-      combatModeRef.current = false;
+      runOnJS(handleGestureEnd)(
+        event.absoluteX,
+        event.absoluteY,
+        event.translationX,
+        event.translationY,
+      );
     });
 
   const lifeExclusive = Gesture.Exclusive(

@@ -5,11 +5,11 @@ import { StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import type { EffectKind, GlobalEffect, PanelEffect } from '@/animations/effects';
 import {
   CombatDragOverlay,
-  findPanelAtPoint,
   type CombatDragState,
   type PanelBounds,
 } from '@/components/board/CombatDragOverlay';
 import { PlayerPanel } from '@/components/board/PlayerPanel';
+import { findPanelAtPoint, shouldBeginCombatDrag } from '@/engine/combatHitTest';
 import { getBoardGrid } from '@/engine/seatLayouts';
 import type { GameState } from '@/engine/types';
 import { palette, spacing, typography } from '@/theme';
@@ -51,8 +51,11 @@ export function GameBoard({
   );
   const boardRef = useRef<View>(null);
   const panelBoundsRef = useRef<PanelBounds[]>([]);
+  const lastCombatTargetRef = useRef<string | null>(null);
+  const combatSessionActiveRef = useRef(false);
   const [combatDrag, setCombatDrag] = useState<CombatDragState>(null);
   const [boardOrigin, setBoardOrigin] = useState({ x: 0, y: 0 });
+  const [boundsVersion, setBoundsVersion] = useState(0);
 
   const measureBoard = useCallback(() => {
     boardRef.current?.measureInWindow((x, y) => {
@@ -79,21 +82,46 @@ export function GameBoard({
     const list = panelBoundsRef.current.filter((b) => b.playerId !== bounds.playerId);
     panelBoundsRef.current = [...list, bounds];
     measureBoard();
+    setBoundsVersion((v) => v + 1);
   }, [measureBoard]);
 
-  const handleAttackDragStart = useCallback((sourceId: string, x: number, y: number) => {
-    setCombatDrag({ sourceId, x, y, targetId: null });
-  }, []);
+  const tryBeginCombatDrag = useCallback(
+    (sourceId: string, x: number, y: number, translationX: number, translationY: number) => {
+      if (combatSessionActiveRef.current) return true;
+
+      const bounds = panelBoundsRef.current;
+      if (bounds.length < 2) return false;
+
+      if (
+        !shouldBeginCombatDrag(bounds, sourceId, x, y, translationX, translationY)
+      ) {
+        return false;
+      }
+
+      const targetId = findPanelAtPoint(bounds, x, y, sourceId);
+      combatSessionActiveRef.current = true;
+      lastCombatTargetRef.current = targetId;
+      setCombatDrag({ sourceId, x, y, targetId });
+      return true;
+    },
+    [],
+  );
 
   const handleAttackDragMove = useCallback((sourceId: string, x: number, y: number) => {
     const targetId = findPanelAtPoint(panelBoundsRef.current, x, y, sourceId);
+    if (targetId) lastCombatTargetRef.current = targetId;
     setCombatDrag({ sourceId, x, y, targetId });
   }, []);
 
   const handleAttackDragEnd = useCallback(
     (sourceId: string, x: number, y: number) => {
-      const targetId = findPanelAtPoint(panelBoundsRef.current, x, y, sourceId);
+      const hitTarget = findPanelAtPoint(panelBoundsRef.current, x, y, sourceId);
+      const targetId = hitTarget ?? lastCombatTargetRef.current;
+
+      combatSessionActiveRef.current = false;
+      lastCombatTargetRef.current = null;
       setCombatDrag(null);
+
       if (targetId) {
         onCombatReady(sourceId, targetId);
       }
@@ -158,7 +186,10 @@ export function GameBoard({
               reducedMotion={reducedMotion}
               combatHighlight={isDragTarget ? 'target' : isDragSource ? 'source' : null}
               onRegisterBounds={registerPanelBounds}
-              onAttackDragStart={(x, y) => handleAttackDragStart(player.id, x, y)}
+              boundsVersion={boundsVersion}
+              onTryCombatStart={(x, y, tx, ty) =>
+                tryBeginCombatDrag(player.id, x, y, tx, ty)
+              }
               onAttackDragMove={(x, y) => handleAttackDragMove(player.id, x, y)}
               onAttackDragEnd={(x, y) => handleAttackDragEnd(player.id, x, y)}
               onEffectEnd={() => {

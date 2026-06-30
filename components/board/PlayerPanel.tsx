@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { LayoutChangeEvent, Pressable, StyleSheet, Text, View } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
 
@@ -32,7 +32,13 @@ type PlayerPanelProps = {
   onLifeChange: (playerId: string, delta: number) => void;
   onOpenActions: (playerId: string) => void;
   onRegisterBounds?: (bounds: PanelBounds) => void;
-  onAttackDragStart?: (absoluteX: number, absoluteY: number) => void;
+  boundsVersion?: number;
+  onTryCombatStart?: (
+    absoluteX: number,
+    absoluteY: number,
+    translationX: number,
+    translationY: number,
+  ) => boolean;
   onAttackDragMove?: (absoluteX: number, absoluteY: number) => void;
   onAttackDragEnd?: (absoluteX: number, absoluteY: number) => void;
 };
@@ -53,7 +59,8 @@ export function PlayerPanel({
   onLifeChange,
   onOpenActions,
   onRegisterBounds,
-  onAttackDragStart,
+  boundsVersion = 0,
+  onTryCombatStart,
   onAttackDragMove,
   onAttackDragEnd,
 }: PlayerPanelProps) {
@@ -79,7 +86,7 @@ export function PlayerPanel({
     panelHeight,
     disabled,
     onCommitDelta,
-    onAttackDragStart,
+    onTryCombatStart,
     onAttackDragMove,
     onAttackDragEnd,
   });
@@ -89,6 +96,11 @@ export function PlayerPanel({
       onRegisterBounds?.({ playerId: player.id, x, y, width, height });
     });
   }, [onRegisterBounds, player.id]);
+
+  // Re-measure when board layout updates so hit-testing stays accurate.
+  useEffect(() => {
+    reportBounds();
+  }, [boundsVersion, reportBounds]);
 
   return (
     <View

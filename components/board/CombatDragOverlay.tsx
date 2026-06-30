@@ -1,15 +1,14 @@
 import { StyleSheet, View } from 'react-native';
 import { Canvas, DashPathEffect, Line, Path, Skia, vec } from '@shopify/react-native-skia';
 
+import {
+  findPanelAtPoint,
+  getPanelCenter,
+  type PanelBounds,
+} from '@/engine/combatHitTest';
 import { palette } from '@/theme';
 
-export type PanelBounds = {
-  playerId: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-};
+export type { PanelBounds } from '@/engine/combatHitTest';
 
 export type CombatDragState = {
   sourceId: string;
@@ -26,31 +25,7 @@ type CombatDragOverlayProps = {
   boardOrigin: BoardOrigin;
 };
 
-export function findPanelAtPoint(
-  bounds: PanelBounds[],
-  x: number,
-  y: number,
-  excludeId?: string,
-): string | null {
-  for (const panel of bounds) {
-    if (panel.playerId === excludeId) continue;
-    if (
-      x >= panel.x &&
-      x <= panel.x + panel.width &&
-      y >= panel.y &&
-      y <= panel.y + panel.height
-    ) {
-      return panel.playerId;
-    }
-  }
-  return null;
-}
-
-export function getPanelCenter(bounds: PanelBounds[], playerId: string) {
-  const panel = bounds.find((b) => b.playerId === playerId);
-  if (!panel) return { x: 0, y: 0 };
-  return { x: panel.x + panel.width / 2, y: panel.y + panel.height / 2 };
-}
+export { findPanelAtPoint, getPanelCenter };
 
 function toLocal(point: { x: number; y: number }, origin: BoardOrigin) {
   return { x: point.x - origin.x, y: point.y - origin.y };
