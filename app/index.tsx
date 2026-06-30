@@ -1,6 +1,8 @@
+import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { Button } from '@/components/ui/Button';
 import { Screen } from '@/components/ui/Screen';
 import { palette, spacing, typography } from '@/theme';
 
@@ -10,18 +12,22 @@ export default function HomeScreen() {
       <StatusBar style="light" />
       <View style={styles.content}>
         <View style={styles.badge}>
-          <Text style={styles.badgeText}>FASE 0</Text>
+          <Text style={styles.badgeText}>COMMANDER</Text>
         </View>
 
-        <Text style={styles.title}>Commander</Text>
-        <Text style={styles.subtitle}>Contador de vidas</Text>
+        <Text style={styles.title}>Contador de vidas</Text>
+        <Text style={styles.subtitle}>Magic: The Gathering · EDH</Text>
 
         <View style={styles.divider} />
 
         <Text style={styles.description}>
-          Control-room listo.{'\n'}
-          Expo Go · React Native · TypeScript
+          Coloca el teléfono en el centro de la mesa.{'\n'}
+          Cada jugador verá su panel orientado hacia su asiento.
         </Text>
+
+        <View style={styles.actions}>
+          <Button label="Nueva partida" onPress={() => router.push('/setup')} />
+        </View>
 
         <View style={styles.manaRow}>
           {(['W', 'U', 'B', 'R', 'G'] as const).map((symbol, index) => (
@@ -90,11 +96,17 @@ const styles = StyleSheet.create({
     borderRadius: 1,
   },
   description: {
-    fontFamily: typography.fontFamily.mono,
+    fontFamily: typography.fontFamily.sans,
     fontSize: typography.fontSize.sm,
     lineHeight: typography.fontSize.sm * typography.lineHeight.relaxed,
     textAlign: 'center',
     color: palette.textMuted,
+    paddingHorizontal: spacing.md,
+  },
+  actions: {
+    width: '100%',
+    paddingHorizontal: spacing.xl,
+    marginTop: spacing.md,
   },
   manaRow: {
     flexDirection: 'row',

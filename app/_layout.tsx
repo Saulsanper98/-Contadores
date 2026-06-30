@@ -50,6 +50,8 @@ export default function RootLayout() {
           animation: 'fade',
         }}>
         <Stack.Screen name="index" />
+        <Stack.Screen name="setup" />
+        <Stack.Screen name="game" />
       </Stack>
     </GestureHandlerRootView>
   );
