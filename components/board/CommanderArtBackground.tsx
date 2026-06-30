@@ -51,7 +51,8 @@ export function CommanderArtBackground({
 const styles = StyleSheet.create({
   art: {
     ...StyleSheet.absoluteFillObject,
-    opacity: 0.92,
+    opacity: 0.95,
+    transform: [{ scale: 1.08 }],
   },
   glowOrb: {
     position: 'absolute',

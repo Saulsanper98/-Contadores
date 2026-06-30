@@ -9,7 +9,7 @@ import {
   type PanelBounds,
 } from '@/components/board/CombatDragOverlay';
 import { PlayerPanel } from '@/components/board/PlayerPanel';
-import { findPanelAtPoint, shouldBeginCombatDrag } from '@/engine/combatHitTest';
+import { findPanelAtPoint, resolveCombatTarget, shouldBeginCombatDrag } from '@/engine/combatHitTest';
 import { getBoardGrid } from '@/engine/seatLayouts';
 import type { GameState } from '@/engine/types';
 import { palette, spacing, typography } from '@/theme';
@@ -89,16 +89,10 @@ export function GameBoard({
     (sourceId: string, x: number, y: number, translationX: number, translationY: number) => {
       if (combatSessionActiveRef.current) return true;
 
-      const bounds = panelBoundsRef.current;
-      if (bounds.length < 2) return false;
+      if (panelBoundsRef.current.length < 2) return false;
+      if (!shouldBeginCombatDrag(translationX, translationY)) return false;
 
-      if (
-        !shouldBeginCombatDrag(bounds, sourceId, x, y, translationX, translationY)
-      ) {
-        return false;
-      }
-
-      const targetId = findPanelAtPoint(bounds, x, y, sourceId);
+      const targetId = findPanelAtPoint(panelBoundsRef.current, x, y, sourceId, 6);
       combatSessionActiveRef.current = true;
       lastCombatTargetRef.current = targetId;
       setCombatDrag({ sourceId, x, y, targetId });
@@ -108,15 +102,20 @@ export function GameBoard({
   );
 
   const handleAttackDragMove = useCallback((sourceId: string, x: number, y: number) => {
-    const targetId = findPanelAtPoint(panelBoundsRef.current, x, y, sourceId);
+    const targetId = findPanelAtPoint(panelBoundsRef.current, x, y, sourceId, 6);
     if (targetId) lastCombatTargetRef.current = targetId;
     setCombatDrag({ sourceId, x, y, targetId });
   }, []);
 
   const handleAttackDragEnd = useCallback(
     (sourceId: string, x: number, y: number) => {
-      const hitTarget = findPanelAtPoint(panelBoundsRef.current, x, y, sourceId);
-      const targetId = hitTarget ?? lastCombatTargetRef.current;
+      const targetId = resolveCombatTarget(
+        panelBoundsRef.current,
+        sourceId,
+        x,
+        y,
+        lastCombatTargetRef.current,
+      );
 
       combatSessionActiveRef.current = false;
       lastCombatTargetRef.current = null;
@@ -224,17 +223,21 @@ const styles = StyleSheet.create({
     zIndex: 0,
   },
   tableRing: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#fff',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
   },
   tableIcon: {
     position: 'absolute',
-    fontSize: 22,
-    color: 'rgba(255, 255, 255, 0.35)',
+    fontSize: 24,
+    color: 'rgba(255, 255, 255, 0.4)',
   },
 });

@@ -6,8 +6,10 @@ export type PanelBounds = {
   height: number;
 };
 
-const HIT_PADDING = 10;
+/** Generous padding when locking onto a target during drag. */
+const DRAG_HIT_PADDING = 6;
 
+/** Full panel container — used on release so any point inside counts. */
 export function pointInPanel(
   x: number,
   y: number,
@@ -27,7 +29,7 @@ export function findPanelAtPoint(
   x: number,
   y: number,
   excludeId?: string,
-  padding = HIT_PADDING,
+  padding = 0,
 ): string | null {
   for (let i = bounds.length - 1; i >= 0; i -= 1) {
     const panel = bounds[i];
@@ -45,16 +47,33 @@ export function getPanelCenter(bounds: PanelBounds[], playerId: string) {
   return { x: panel.x + panel.width / 2, y: panel.y + panel.height / 2 };
 }
 
-/** Combat drag starts once the finger enters another player's panel. */
+/** Combat drag from the center zone — starts after a short movement. */
 export function shouldBeginCombatDrag(
+  translationX: number,
+  translationY: number,
+  minDistance = 10,
+): boolean {
+  return Math.hypot(translationX, translationY) >= minDistance;
+}
+
+/** Resolve target on release: full container, then last hovered target. */
+export function resolveCombatTarget(
   bounds: PanelBounds[],
   sourceId: string,
   x: number,
   y: number,
-  translationX: number,
-  translationY: number,
-  minDistance = 14,
-): boolean {
-  if (Math.hypot(translationX, translationY) < minDistance) return false;
-  return findPanelAtPoint(bounds, x, y, sourceId) !== null;
+  lastTargetId: string | null,
+): string | null {
+  const direct = findPanelAtPoint(bounds, x, y, sourceId, 0);
+  if (direct) return direct;
+
+  const padded = findPanelAtPoint(bounds, x, y, sourceId, DRAG_HIT_PADDING);
+  if (padded) return padded;
+
+  if (lastTargetId && lastTargetId !== sourceId) {
+    const lastPanel = bounds.find((b) => b.playerId === lastTargetId);
+    if (lastPanel) return lastTargetId;
+  }
+
+  return null;
 }

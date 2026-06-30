@@ -1,6 +1,7 @@
 import {
   findPanelAtPoint,
   pointInPanel,
+  resolveCombatTarget,
   shouldBeginCombatDrag,
   type PanelBounds,
 } from '../combatHitTest';
@@ -13,18 +14,24 @@ const bounds: PanelBounds[] = [
 ];
 
 describe('combatHitTest', () => {
-  it('finds panel at point with padding', () => {
-    expect(findPanelAtPoint(bounds, 105, 50, 'a')).toBe('b');
+  it('finds panel at point inside container', () => {
+    expect(findPanelAtPoint(bounds, 150, 50, 'a')).toBe('b');
     expect(findPanelAtPoint(bounds, 50, 50, 'a')).toBeNull();
   });
 
-  it('starts combat when finger enters another panel in any direction', () => {
-    expect(shouldBeginCombatDrag(bounds, 'a', 150, 50, 0, 40)).toBe(true);
-    expect(shouldBeginCombatDrag(bounds, 'a', 50, 150, 0, 80)).toBe(true);
-    expect(shouldBeginCombatDrag(bounds, 'a', 50, 40, 0, 30)).toBe(false);
+  it('starts combat drag from center after min distance', () => {
+    expect(shouldBeginCombatDrag(0, 8)).toBe(false);
+    expect(shouldBeginCombatDrag(0, 20)).toBe(true);
+    expect(shouldBeginCombatDrag(15, 15)).toBe(true);
   });
 
-  it('pointInPanel respects bounds', () => {
+  it('resolves target anywhere inside opponent container', () => {
+    expect(resolveCombatTarget(bounds, 'a', 110, 10, null)).toBe('b');
+    expect(resolveCombatTarget(bounds, 'a', 199, 99, null)).toBe('b');
+    expect(resolveCombatTarget(bounds, 'a', 50, 50, 'b')).toBe('b');
+  });
+
+  it('pointInPanel respects exact bounds', () => {
     expect(pointInPanel(10, 10, bounds[0]!)).toBe(true);
     expect(pointInPanel(200, 200, bounds[0]!)).toBe(false);
   });
