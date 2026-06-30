@@ -3,52 +3,37 @@ import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/components/ui/Button';
+import { ManaPip } from '@/components/ui/ManaPip';
 import { Screen } from '@/components/ui/Screen';
-import { palette, spacing, typography } from '@/theme';
+import { MANA_OPTIONS } from '@/store/gameStore';
+import { palette, radius, spacing, typography } from '@/theme';
 
 export default function HomeScreen() {
   return (
     <Screen>
       <StatusBar style="light" />
+      <View style={styles.glowTop} />
+      <View style={styles.glowBottom} />
+
       <View style={styles.content}>
-        <View style={styles.badge}>
-          <Text style={styles.badgeText}>COMMANDER</Text>
+        <Text style={styles.eyebrow}>MAGIC: THE GATHERING</Text>
+        <Text style={styles.title}>Commander</Text>
+        <Text style={styles.subtitle}>Contador de vidas · EDH</Text>
+
+        <View style={styles.heroCard}>
+          <Text style={styles.heroText}>
+            Coloca el teléfono en el centro de la mesa. Cada jugador toca su panel, orientado
+            hacia su asiento.
+          </Text>
         </View>
-
-        <Text style={styles.title}>Contador de vidas</Text>
-        <Text style={styles.subtitle}>Magic: The Gathering · EDH</Text>
-
-        <View style={styles.divider} />
-
-        <Text style={styles.description}>
-          Coloca el teléfono en el centro de la mesa.{'\n'}
-          Cada jugador verá su panel orientado hacia su asiento.
-        </Text>
 
         <View style={styles.actions}>
           <Button label="Nueva partida" onPress={() => router.push('/setup')} />
         </View>
 
         <View style={styles.manaRow}>
-          {(['W', 'U', 'B', 'R', 'G'] as const).map((symbol, index) => (
-            <View
-              key={symbol}
-              style={[
-                styles.manaPip,
-                index === 0 && styles.manaWhite,
-                index === 1 && styles.manaBlue,
-                index === 2 && styles.manaBlack,
-                index === 3 && styles.manaRed,
-                index === 4 && styles.manaGreen,
-              ]}>
-              <Text
-                style={[
-                  styles.manaSymbol,
-                  (index === 0 || index === 2) && styles.manaSymbolDark,
-                ]}>
-                {symbol}
-              </Text>
-            </View>
+          {MANA_OPTIONS.slice(0, 5).map((option) => (
+            <ManaPip key={option.id} identity={option.id} size="md" label={option.symbol} />
           ))}
         </View>
       </View>
@@ -57,29 +42,41 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  glowTop: {
+    position: 'absolute',
+    top: '8%',
+    left: '10%',
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: palette.accentMuted,
+    opacity: 0.4,
+  },
+  glowBottom: {
+    position: 'absolute',
+    bottom: '12%',
+    right: '5%',
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    backgroundColor: 'rgba(245, 90, 78, 0.12)',
+  },
   content: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.md,
+    paddingHorizontal: spacing.lg,
   },
-  badge: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: 999,
-    backgroundColor: palette.accentMuted,
-    borderWidth: 1,
-    borderColor: palette.border,
-  },
-  badgeText: {
+  eyebrow: {
     fontFamily: typography.fontFamily.sansSemiBold,
     fontSize: typography.fontSize.xs,
-    letterSpacing: typography.letterSpacing.wide,
-    color: palette.accent,
+    letterSpacing: 3,
+    color: palette.textMuted,
   },
   title: {
     fontFamily: typography.fontFamily.sansBold,
-    fontSize: typography.fontSize.xxl,
+    fontSize: 48,
     letterSpacing: typography.letterSpacing.tight,
     color: palette.textPrimary,
   },
@@ -87,52 +84,31 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.sans,
     fontSize: typography.fontSize.lg,
     color: palette.textSecondary,
+    marginBottom: spacing.sm,
   },
-  divider: {
-    width: 48,
-    height: 2,
-    marginVertical: spacing.sm,
-    backgroundColor: palette.borderStrong,
-    borderRadius: 1,
+  heroCard: {
+    backgroundColor: palette.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: palette.border,
+    padding: spacing.lg,
+    maxWidth: 360,
   },
-  description: {
+  heroText: {
     fontFamily: typography.fontFamily.sans,
     fontSize: typography.fontSize.sm,
     lineHeight: typography.fontSize.sm * typography.lineHeight.relaxed,
     textAlign: 'center',
-    color: palette.textMuted,
-    paddingHorizontal: spacing.md,
+    color: palette.textSecondary,
   },
   actions: {
     width: '100%',
-    paddingHorizontal: spacing.xl,
+    maxWidth: 320,
     marginTop: spacing.md,
   },
   manaRow: {
     flexDirection: 'row',
     gap: spacing.sm,
     marginTop: spacing.xl,
-  },
-  manaPip: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: palette.borderStrong,
-  },
-  manaWhite: { backgroundColor: '#F8F6D8' },
-  manaBlue: { backgroundColor: '#0E68AB' },
-  manaBlack: { backgroundColor: '#2A2A2A' },
-  manaRed: { backgroundColor: '#D3202A' },
-  manaGreen: { backgroundColor: '#00733E' },
-  manaSymbol: {
-    fontFamily: typography.fontFamily.sansBold,
-    fontSize: typography.fontSize.sm,
-    color: palette.textPrimary,
-  },
-  manaSymbolDark: {
-    color: palette.textInverse,
   },
 });

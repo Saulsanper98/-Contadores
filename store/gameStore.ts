@@ -4,14 +4,29 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 
 import {
   addGenericCounterDef,
+  adjustGenericCounter,
   adjustLife,
+  adjustPoison,
+  applyCommanderDamage,
   clampPlayerCount,
   createDefaultSetup,
   createGameFromSetup,
+  damageAll,
+  eliminatePlayer,
+  healAll,
   removeGenericCounterDef,
   resizePlayers,
+  revivePlayer,
+  setAllLife,
+  setMonarch,
 } from '@/engine/gameEngine';
 import type { GameSetup, GameState, GenericCounterDef, ManaIdentity, PlayerSetup } from '@/engine/types';
+
+export type GameToast = {
+  id: number;
+  title: string;
+  subtitle?: string;
+};
 
 interface SetupStore {
   setup: GameSetup;
@@ -97,13 +112,29 @@ export const useSetupStore = create<SetupStore>()(
 
 interface GameStore {
   game: GameState | null;
+  toast: GameToast | null;
   startGame: (setup: GameSetup) => GameState;
   clearGame: () => void;
+  showToast: (title: string, subtitle?: string) => void;
+  clearToast: () => void;
   adjustPlayerLife: (playerId: string, delta: number) => void;
+  dealCommanderDamage: (targetId: string, sourceId: string, amount: number) => void;
+  adjustPlayerPoison: (playerId: string, delta: number) => void;
+  adjustPlayerCounter: (playerId: string, counterId: string, delta: number) => void;
+  setPlayerMonarch: (playerId: string) => void;
+  clearMonarch: () => void;
+  markEliminated: (playerId: string) => void;
+  markRevived: (playerId: string) => void;
+  applyDamageAll: (amount: number) => void;
+  applyHealAll: (amount: number) => void;
+  applySetAllLife: (life: number) => void;
 }
+
+let toastCounter = 0;
 
 export const useGameStore = create<GameStore>((set, get) => ({
   game: null,
+  toast: null,
 
   startGame: (setup) => {
     const game = createGameFromSetup(setup);
@@ -111,12 +142,79 @@ export const useGameStore = create<GameStore>((set, get) => ({
     return game;
   },
 
-  clearGame: () => set({ game: null }),
+  clearGame: () => set({ game: null, toast: null }),
+
+  showToast: (title, subtitle) => {
+    toastCounter += 1;
+    set({ toast: { id: toastCounter, title, subtitle } });
+  },
+
+  clearToast: () => set({ toast: null }),
 
   adjustPlayerLife: (playerId, delta) => {
     const { game } = get();
     if (!game || delta === 0) return;
     set({ game: adjustLife(game, playerId, delta) });
+  },
+
+  dealCommanderDamage: (targetId, sourceId, amount) => {
+    const { game } = get();
+    if (!game || amount === 0) return;
+    set({ game: applyCommanderDamage(game, targetId, sourceId, amount) });
+  },
+
+  adjustPlayerPoison: (playerId, delta) => {
+    const { game } = get();
+    if (!game || delta === 0) return;
+    set({ game: adjustPoison(game, playerId, delta) });
+  },
+
+  adjustPlayerCounter: (playerId, counterId, delta) => {
+    const { game } = get();
+    if (!game || delta === 0) return;
+    set({ game: adjustGenericCounter(game, playerId, counterId, delta) });
+  },
+
+  setPlayerMonarch: (playerId) => {
+    const { game } = get();
+    if (!game) return;
+    set({ game: setMonarch(game, playerId) });
+  },
+
+  clearMonarch: () => {
+    const { game } = get();
+    if (!game) return;
+    set({ game: setMonarch(game, null) });
+  },
+
+  markEliminated: (playerId) => {
+    const { game } = get();
+    if (!game) return;
+    set({ game: eliminatePlayer(game, playerId) });
+  },
+
+  markRevived: (playerId) => {
+    const { game } = get();
+    if (!game) return;
+    set({ game: revivePlayer(game, playerId) });
+  },
+
+  applyDamageAll: (amount) => {
+    const { game } = get();
+    if (!game || amount === 0) return;
+    set({ game: damageAll(game, amount) });
+  },
+
+  applyHealAll: (amount) => {
+    const { game } = get();
+    if (!game || amount === 0) return;
+    set({ game: healAll(game, amount) });
+  },
+
+  applySetAllLife: (life) => {
+    const { game } = get();
+    if (!game) return;
+    set({ game: setAllLife(game, life) });
   },
 }));
 

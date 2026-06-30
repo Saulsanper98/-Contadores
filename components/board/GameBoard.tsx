@@ -9,6 +9,7 @@ import { palette, spacing, typography } from '@/theme';
 type GameBoardProps = {
   game: GameState;
   onLifeChange: (playerId: string, delta: number) => void;
+  onOpenActions: (playerId: string) => void;
 };
 
 function lifeFontSize(playerCount: number): number {
@@ -17,13 +18,11 @@ function lifeFontSize(playerCount: number): number {
   return typography.fontSize.lifeCounter;
 }
 
-export function GameBoard({ game, onLifeChange }: GameBoardProps) {
+export function GameBoard({ game, onLifeChange, onOpenActions }: GameBoardProps) {
   const grid = useMemo(() => getBoardGrid(game.players.length), [game.players.length]);
 
   const handleLifeChange = useCallback(
-    (playerId: string, delta: number) => {
-      onLifeChange(playerId, delta);
-    },
+    (playerId: string, delta: number) => onLifeChange(playerId, delta),
     [onLifeChange],
   );
 
@@ -34,7 +33,7 @@ export function GameBoard({ game, onLifeChange }: GameBoardProps) {
     const topPercent = (row / grid.rows) * 100;
 
     return {
-      position: 'absolute' as const,
+      position: 'absolute',
       left: `${leftPercent}%`,
       top: `${topPercent}%`,
       width: `${widthPercent}%`,
@@ -45,6 +44,7 @@ export function GameBoard({ game, onLifeChange }: GameBoardProps) {
 
   return (
     <View style={styles.board}>
+      <View style={styles.vignette} pointerEvents="none" />
       {grid.seats.map((seat) => {
         const player = game.players[seat.playerIndex];
         if (!player) return null;
@@ -58,7 +58,9 @@ export function GameBoard({ game, onLifeChange }: GameBoardProps) {
               seatIndex={seat.playerIndex}
               rotation={seat.rotation}
               lifeFontSize={lifeFontSize(game.players.length)}
+              isMonarch={game.monarchPlayerId === player.id}
               onLifeChange={handleLifeChange}
+              onOpenActions={onOpenActions}
             />
           </View>
         );
@@ -71,5 +73,12 @@ const styles = StyleSheet.create({
   board: {
     flex: 1,
     backgroundColor: palette.background,
+  },
+  vignette: {
+    ...StyleSheet.absoluteFillObject,
+    borderWidth: spacing.md,
+    borderColor: 'rgba(0,0,0,0.35)',
+    zIndex: 1,
+    pointerEvents: 'none',
   },
 });
