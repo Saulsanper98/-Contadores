@@ -5,10 +5,12 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/ui/Button';
 import { ManaPip } from '@/components/ui/ManaPip';
 import { Screen } from '@/components/ui/Screen';
-import { MANA_OPTIONS } from '@/store/gameStore';
+import { MANA_OPTIONS, useGameStore } from '@/store/gameStore';
 import { palette, radius, spacing, typography } from '@/theme';
 
 export default function HomeScreen() {
+  const game = useGameStore((state) => state.game);
+
   return (
     <Screen>
       <StatusBar style="light" />
@@ -28,7 +30,14 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.actions}>
-          <Button label="Nueva partida" onPress={() => router.push('/setup')} />
+          {game ? (
+            <Button label="Continuar partida" onPress={() => router.push('/game')} />
+          ) : null}
+          <Button
+            label={game ? 'Nueva partida' : 'Nueva partida'}
+            variant={game ? 'secondary' : 'primary'}
+            onPress={() => router.push('/setup')}
+          />
         </View>
 
         <View style={styles.manaRow}>

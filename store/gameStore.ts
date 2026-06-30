@@ -3,6 +3,14 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
 import {
+  type EffectKind,
+  type GlobalEffect,
+  type PanelEffect,
+  effectKindForLifeDelta,
+  nextEffectId,
+} from '@/animations/effects';
+import { triggerHaptic } from '@/animations/haptics';
+import {
   addGenericCounterDef,
   adjustGenericCounter,
   adjustLife,
@@ -14,18 +22,26 @@ import {
   damageAll,
   eliminatePlayer,
   healAll,
+  popSnapshot,
+  pushSnapshot,
   removeGenericCounterDef,
   resizePlayers,
   revivePlayer,
   setAllLife,
   setMonarch,
-} from '@/engine/gameEngine';
+} from '@/engine';
 import type { GameSetup, GameState, GenericCounterDef, ManaIdentity, PlayerSetup } from '@/engine/types';
 
 export type GameToast = {
   id: number;
   title: string;
   subtitle?: string;
+};
+
+type MutateOptions = {
+  panelEffect?: { playerId: string; kind: EffectKind } | null;
+  globalEffect?: GlobalEffect['kind'] | null;
+  skipHistory?: boolean;
 };
 
 interface SetupStore {
@@ -43,7 +59,6 @@ export const useSetupStore = create<SetupStore>()(
   persist(
     (set, get) => ({
       setup: createDefaultSetup(4),
-
       setPlayerCount: (count) => {
         const playerCount = clampPlayerCount(count);
         set((state) => ({
@@ -54,69 +69,59 @@ export const useSetupStore = create<SetupStore>()(
           },
         }));
       },
-
       setStartingLife: (life) => {
         set((state) => ({
-          setup: {
-            ...state.setup,
-            startingLife: Math.max(1, life),
-          },
+          setup: { ...state.setup, startingLife: Math.max(1, life) },
         }));
       },
-
       updatePlayer: (playerId, patch) => {
         set((state) => ({
           setup: {
             ...state.setup,
-            players: state.setup.players.map((player) =>
-              player.id === playerId ? { ...player, ...patch } : player,
+            players: state.setup.players.map((p) =>
+              p.id === playerId ? { ...p, ...patch } : p,
             ),
           },
         }));
       },
-
       addGenericCounter: (name, icon) => {
         const counter: GenericCounterDef = {
           id: `counter-${Date.now()}`,
           name: name.trim() || 'Contador',
           icon: icon.trim() || '◆',
         };
-
-        set((state) => ({
-          setup: addGenericCounterDef(state.setup, counter),
-        }));
+        set((state) => ({ setup: addGenericCounterDef(state.setup, counter) }));
       },
-
       removeGenericCounter: (counterId) => {
-        set((state) => ({
-          setup: removeGenericCounterDef(state.setup, counterId),
-        }));
+        set((state) => ({ setup: removeGenericCounterDef(state.setup, counterId) }));
       },
-
-      resetToDefaults: () => {
-        set({ setup: createDefaultSetup(4) });
-      },
-
-      loadLastSetup: () => {
-        const current = get().setup;
-        set({ setup: current });
-      },
+      resetToDefaults: () => set({ setup: createDefaultSetup(4) }),
+      loadLastSetup: () => set({ setup: get().setup }),
     }),
     {
       name: 'commander-setup',
       storage: createJSONStorage(() => AsyncStorage),
-      partialize: (state) => ({ setup: state.setup }),
+      partialize: (s) => ({ setup: s.setup }),
     },
   ),
 );
 
 interface GameStore {
   game: GameState | null;
+  past: GameState[];
   toast: GameToast | null;
+  panelEffect: PanelEffect | null;
+  globalEffect: GlobalEffect | null;
+  gameStartedAt: number | null;
   startGame: (setup: GameSetup) => GameState;
   clearGame: () => void;
+  restartGame: () => void;
   showToast: (title: string, subtitle?: string) => void;
   clearToast: () => void;
+  clearPanelEffect: () => void;
+  clearGlobalEffect: () => void;
+  undo: () => boolean;
+  canUndo: () => boolean;
   adjustPlayerLife: (playerId: string, delta: number) => void;
   dealCommanderDamage: (targetId: string, sourceId: string, amount: number) => void;
   adjustPlayerPoison: (playerId: string, delta: number) => void;
@@ -132,91 +137,174 @@ interface GameStore {
 
 let toastCounter = 0;
 
-export const useGameStore = create<GameStore>((set, get) => ({
-  game: null,
-  toast: null,
+function findNewEliminations(before: GameState, after: GameState): string[] {
+  return after.players
+    .filter((p) => p.isEliminated && !before.players.find((o) => o.id === p.id)?.isEliminated)
+    .map((p) => p.id);
+}
 
-  startGame: (setup) => {
-    const game = createGameFromSetup(setup);
-    set({ game });
-    return game;
-  },
+export const useGameStore = create<GameStore>()(
+  persist(
+    (set, get) => {
+      const mutate = (updater: (g: GameState) => GameState, options: MutateOptions = {}) => {
+        const { game, past } = get();
+        if (!game) return;
 
-  clearGame: () => set({ game: null, toast: null }),
+        const next = updater(game);
+        const newPast = options.skipHistory ? past : pushSnapshot(past, game);
 
-  showToast: (title, subtitle) => {
-    toastCounter += 1;
-    set({ toast: { id: toastCounter, title, subtitle } });
-  },
+        let panelEffect = options.panelEffect
+          ? { ...options.panelEffect, id: nextEffectId() }
+          : null;
 
-  clearToast: () => set({ toast: null }),
+        const eliminations = findNewEliminations(game, next);
+        if (eliminations.length > 0 && eliminations[0]) {
+          panelEffect = { playerId: eliminations[0], kind: 'elimination', id: nextEffectId() };
+        }
 
-  adjustPlayerLife: (playerId, delta) => {
-    const { game } = get();
-    if (!game || delta === 0) return;
-    set({ game: adjustLife(game, playerId, delta) });
-  },
+        const globalEffect = options.globalEffect
+          ? { kind: options.globalEffect, id: nextEffectId() }
+          : null;
 
-  dealCommanderDamage: (targetId, sourceId, amount) => {
-    const { game } = get();
-    if (!game || amount === 0) return;
-    set({ game: applyCommanderDamage(game, targetId, sourceId, amount) });
-  },
+        if (panelEffect) void triggerHaptic(panelEffect.kind);
+        if (globalEffect) {
+          void triggerHaptic(globalEffect.kind === 'groupHeal' ? 'groupHeal' : 'groupDamage');
+        }
 
-  adjustPlayerPoison: (playerId, delta) => {
-    const { game } = get();
-    if (!game || delta === 0) return;
-    set({ game: adjustPoison(game, playerId, delta) });
-  },
+        set({ game: next, past: newPast, panelEffect, globalEffect });
+      };
 
-  adjustPlayerCounter: (playerId, counterId, delta) => {
-    const { game } = get();
-    if (!game || delta === 0) return;
-    set({ game: adjustGenericCounter(game, playerId, counterId, delta) });
-  },
+      return {
+        game: null,
+        past: [],
+        toast: null,
+        panelEffect: null,
+        globalEffect: null,
+        gameStartedAt: null,
 
-  setPlayerMonarch: (playerId) => {
-    const { game } = get();
-    if (!game) return;
-    set({ game: setMonarch(game, playerId) });
-  },
+        startGame: (setup) => {
+          const game = createGameFromSetup(setup);
+          set({
+            game,
+            past: [],
+            panelEffect: null,
+            globalEffect: null,
+            gameStartedAt: Date.now(),
+          });
+          return game;
+        },
 
-  clearMonarch: () => {
-    const { game } = get();
-    if (!game) return;
-    set({ game: setMonarch(game, null) });
-  },
+        clearGame: () =>
+          set({
+            game: null,
+            past: [],
+            toast: null,
+            panelEffect: null,
+            globalEffect: null,
+            gameStartedAt: null,
+          }),
 
-  markEliminated: (playerId) => {
-    const { game } = get();
-    if (!game) return;
-    set({ game: eliminatePlayer(game, playerId) });
-  },
+        restartGame: () => {
+          const { game } = get();
+          if (!game) return;
+          const fresh = createGameFromSetup(game.setup);
+          set({
+            game: fresh,
+            past: [],
+            panelEffect: null,
+            globalEffect: null,
+            gameStartedAt: Date.now(),
+          });
+        },
 
-  markRevived: (playerId) => {
-    const { game } = get();
-    if (!game) return;
-    set({ game: revivePlayer(game, playerId) });
-  },
+        showToast: (title, subtitle) => {
+          toastCounter += 1;
+          set({ toast: { id: toastCounter, title, subtitle } });
+        },
 
-  applyDamageAll: (amount) => {
-    const { game } = get();
-    if (!game || amount === 0) return;
-    set({ game: damageAll(game, amount) });
-  },
+        clearToast: () => set({ toast: null }),
+        clearPanelEffect: () => set({ panelEffect: null }),
+        clearGlobalEffect: () => set({ globalEffect: null }),
 
-  applyHealAll: (amount) => {
-    const { game } = get();
-    if (!game || amount === 0) return;
-    set({ game: healAll(game, amount) });
-  },
+        undo: () => {
+          const { past } = get();
+          const { state, stack } = popSnapshot(past);
+          if (!state) return false;
+          set({ game: state, past: stack, panelEffect: null, globalEffect: null });
+          return true;
+        },
 
-  applySetAllLife: (life) => {
-    const { game } = get();
-    if (!game) return;
-    set({ game: setAllLife(game, life) });
-  },
-}));
+        canUndo: () => get().past.length > 0,
+
+        adjustPlayerLife: (playerId, delta) => {
+          const kind = effectKindForLifeDelta(delta);
+          mutate((g) => adjustLife(g, playerId, delta), {
+            panelEffect: kind ? { playerId, kind } : null,
+          });
+        },
+
+        dealCommanderDamage: (targetId, sourceId, amount) => {
+          mutate((g) => applyCommanderDamage(g, targetId, sourceId, amount), {
+            panelEffect: { playerId: targetId, kind: 'commander' },
+          });
+        },
+
+        adjustPlayerPoison: (playerId, delta) => {
+          mutate((g) => adjustPoison(g, playerId, delta), {
+            panelEffect: { playerId, kind: 'poison' },
+          });
+        },
+
+        adjustPlayerCounter: (playerId, counterId, delta) => {
+          mutate((g) => adjustGenericCounter(g, playerId, counterId, delta), { skipHistory: false });
+        },
+
+        setPlayerMonarch: (playerId) => {
+          mutate((g) => setMonarch(g, playerId), {
+            panelEffect: { playerId, kind: 'monarch' },
+          });
+        },
+
+        clearMonarch: () => {
+          mutate((g) => setMonarch(g, null));
+        },
+
+        markEliminated: (playerId) => {
+          mutate((g) => eliminatePlayer(g, playerId), {
+            panelEffect: { playerId, kind: 'elimination' },
+          });
+        },
+
+        markRevived: (playerId) => {
+          mutate((g) => revivePlayer(g, playerId), {
+            panelEffect: { playerId, kind: 'revive' },
+          });
+        },
+
+        applyDamageAll: (amount) => {
+          mutate((g) => damageAll(g, amount), { globalEffect: 'groupDamage' });
+        },
+
+        applyHealAll: (amount) => {
+          mutate((g) => healAll(g, amount), { globalEffect: 'groupHeal' });
+        },
+
+        applySetAllLife: (life) => {
+          mutate((g) => setAllLife(g, life), { globalEffect: 'groupSet' });
+        },
+      };
+    },
+    {
+      name: 'commander-game',
+      storage: createJSONStorage(() => AsyncStorage),
+      partialize: (s) => ({
+        game: s.game,
+        past: s.past,
+        gameStartedAt: s.gameStartedAt,
+      }),
+    },
+  ),
+);
 
 export const MANA_OPTIONS: { id: ManaIdentity; label: string; symbol: string }[] = [
   { id: 'white', label: 'Blanco', symbol: 'W' },

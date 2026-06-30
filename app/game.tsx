@@ -2,27 +2,39 @@ import { router } from 'expo-router';
 import { useKeepAwake } from 'expo-keep-awake';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useMemo, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { GameBoard } from '@/components/board/GameBoard';
+import { GameMenuSheet } from '@/components/game/GameMenuSheet';
 import { GameToastOverlay } from '@/components/game/GameToastOverlay';
 import { GroupToolsSheet } from '@/components/game/GroupToolsSheet';
 import { PlayerActionSheet } from '@/components/game/PlayerActionSheet';
 import { Button } from '@/components/ui/Button';
 import { Screen } from '@/components/ui/Screen';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { palette, radius, spacing, typography } from '@/theme';
 import { useGameStore } from '@/store/gameStore';
 
 export default function GameScreen() {
   useKeepAwake();
-
+  const reducedMotion = useReducedMotion();
   const insets = useSafeAreaInsets();
+
   const game = useGameStore((state) => state.game);
+  const past = useGameStore((state) => state.past);
   const toast = useGameStore((state) => state.toast);
+  const panelEffect = useGameStore((state) => state.panelEffect);
+  const globalEffect = useGameStore((state) => state.globalEffect);
+  const gameStartedAt = useGameStore((state) => state.gameStartedAt);
+
   const clearGame = useGameStore((state) => state.clearGame);
   const clearToast = useGameStore((state) => state.clearToast);
+  const clearPanelEffect = useGameStore((state) => state.clearPanelEffect);
+  const clearGlobalEffect = useGameStore((state) => state.clearGlobalEffect);
   const showToast = useGameStore((state) => state.showToast);
+  const undo = useGameStore((state) => state.undo);
+  const restartGame = useGameStore((state) => state.restartGame);
   const adjustPlayerLife = useGameStore((state) => state.adjustPlayerLife);
   const dealCommanderDamage = useGameStore((state) => state.dealCommanderDamage);
   const adjustPlayerPoison = useGameStore((state) => state.adjustPlayerPoison);
@@ -37,24 +49,26 @@ export default function GameScreen() {
 
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [groupOpen, setGroupOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const canUndo = past.length > 0;
 
   const selectedPlayer = useMemo(
     () => game?.players.find((p) => p.id === selectedPlayerId) ?? null,
     [game, selectedPlayerId],
   );
 
-  const confirmExit = useCallback(() => {
-    Alert.alert('Salir de la partida', '¿Terminar la partida actual?', [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Salir',
-        style: 'destructive',
-        onPress: () => {
-          clearGame();
-          router.replace('/');
-        },
-      },
-    ]);
+  const handleUndo = useCallback(() => {
+    const ok = undo();
+    if (ok) {
+      showToast('Deshecho', 'Último cambio revertido');
+      setMenuOpen(false);
+    }
+  }, [showToast, undo]);
+
+  const handleExit = useCallback(() => {
+    clearGame();
+    router.replace('/');
   }, [clearGame]);
 
   if (!game) {
@@ -74,14 +88,14 @@ export default function GameScreen() {
       <StatusBar style="light" hidden />
 
       <View style={styles.toolbar}>
-        <Pressable accessibilityRole="button" onPress={confirmExit} style={styles.toolBtn}>
-          <Text style={styles.toolBtnText}>✕</Text>
+        <Pressable accessibilityRole="button" onPress={() => setMenuOpen(true)} style={styles.toolBtn}>
+          <Text style={styles.toolBtnText}>☰</Text>
         </Pressable>
 
         <View style={styles.toolbarCenter}>
           <Text style={styles.toolbarTitle}>COMMANDER</Text>
           <Text style={styles.toolbarMeta}>
-            {game.players.length} jugadores · {game.setup.startingLife} PV
+            {game.players.length} jugadores · {canUndo ? '↩ disponible' : 'sin undo'}
           </Text>
         </View>
 
@@ -95,8 +109,13 @@ export default function GameScreen() {
 
       <GameBoard
         game={game}
+        panelEffect={panelEffect}
+        globalEffect={globalEffect}
+        reducedMotion={reducedMotion}
         onLifeChange={adjustPlayerLife}
         onOpenActions={setSelectedPlayerId}
+        onClearPanelEffect={clearPanelEffect}
+        onClearGlobalEffect={clearGlobalEffect}
       />
 
       <PlayerActionSheet
@@ -121,6 +140,20 @@ export default function GameScreen() {
         onHealAll={applyHealAll}
         onSetAllLife={applySetAllLife}
         onToast={showToast}
+      />
+
+      <GameMenuSheet
+        visible={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        gameStartedAt={gameStartedAt}
+        canUndo={canUndo}
+        onUndo={handleUndo}
+        onRestart={restartGame}
+        onNewGame={() => {
+          setMenuOpen(false);
+          router.push('/setup');
+        }}
+        onExit={handleExit}
       />
 
       <GameToastOverlay toast={toast} onDismiss={clearToast} />

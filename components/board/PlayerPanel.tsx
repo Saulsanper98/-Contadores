@@ -2,8 +2,10 @@ import { useCallback, useState } from 'react';
 import { LayoutChangeEvent, Pressable, StyleSheet, Text, View } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
 
+import { PanelEffectWrapper } from '@/components/animations/PanelEffectWrapper';
 import { FloatingDelta } from '@/components/board/FloatingDelta';
 import { useLifeCounterGestures } from '@/hooks/useLifeCounterGestures';
+import type { EffectKind } from '@/animations/effects';
 import {
   getMaxCommanderDamage,
   isCommanderDanger,
@@ -18,6 +20,10 @@ type PlayerPanelProps = {
   rotation: number;
   lifeFontSize: number;
   isMonarch: boolean;
+  effectId?: number;
+  effectKind?: EffectKind | null;
+  reducedMotion?: boolean;
+  onEffectEnd?: () => void;
   style?: object;
   onLifeChange: (playerId: string, delta: number) => void;
   onOpenActions: (playerId: string) => void;
@@ -29,6 +35,10 @@ export function PlayerPanel({
   rotation,
   lifeFontSize,
   isMonarch,
+  effectId = 0,
+  effectKind = null,
+  reducedMotion,
+  onEffectEnd,
   style,
   onLifeChange,
   onOpenActions,
@@ -61,7 +71,12 @@ export function PlayerPanel({
         disabled && styles.eliminated,
         { borderColor: accent.glow },
       ]}>
-      <View style={[styles.glow, { backgroundColor: accent.glow }]} />
+      <PanelEffectWrapper
+        effectId={effectId}
+        effectKind={effectKind}
+        reducedMotion={reducedMotion}
+        onEffectEnd={onEffectEnd}>
+        <View style={[styles.glow, { backgroundColor: accent.glow }]} />
 
       <Pressable
         accessibilityRole="button"
@@ -102,6 +117,15 @@ export function PlayerPanel({
                 {player.poison > 0 ? (
                   <View style={[styles.statChip, poisonWarn && styles.statDanger]}>
                     <Text style={styles.statText}>☠ {player.poison}</Text>
+                    {player.poison > 0 ? (
+                      <View style={styles.poisonDrops}>
+                        {Array.from({ length: Math.min(player.poison, 10) }).map((_, i) => (
+                          <Text key={i} style={styles.drop}>
+                            ●
+                          </Text>
+                        ))}
+                      </View>
+                    ) : null}
                   </View>
                 ) : null}
                 {maxCmd > 0 ? (
@@ -132,6 +156,7 @@ export function PlayerPanel({
           <FloatingDelta delta={floatingDelta} />
         </View>
       </GestureDetector>
+      </PanelEffectWrapper>
     </View>
   );
 }
@@ -244,6 +269,18 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.mono,
     fontSize: typography.fontSize.xs,
     color: palette.textSecondary,
+  },
+  poisonDrops: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 1,
+    marginTop: 2,
+    maxWidth: 72,
+  },
+  drop: {
+    fontSize: 6,
+    color: palette.poison,
+    lineHeight: 8,
   },
   fallen: {
     alignItems: 'center',
