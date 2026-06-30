@@ -180,22 +180,18 @@ export function usePlayerPanelGestures({
     [commitPending, disabled, onAttackDragEnd, onAttackDragMove, onTryCombatStart],
   );
 
-  const handleDoubleTap = useCallback(
-    (localX: number) => {
-      if (disabled) return;
-      const zone = getPanelTouchZone(localX, panelWidth);
-      if (zone === 'center') onOpenMenu?.();
-    },
-    [disabled, onOpenMenu, panelWidth],
-  );
+  const handleDoubleTap = useCallback(() => {
+    if (disabled) return;
+    onOpenMenu?.();
+  }, [disabled, onOpenMenu]);
 
   const taps = Gesture.Exclusive(
     Gesture.Tap()
       .numberOfTaps(2)
       .maxDuration(320)
       .enabled(!disabled)
-      .onEnd((event) => {
-        runOnJS(handleDoubleTap)(event.x);
+      .onEnd(() => {
+        runOnJS(handleDoubleTap)();
       }),
     Gesture.Tap()
       .enabled(!disabled)

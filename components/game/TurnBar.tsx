@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { HoldPassTurnButton } from '@/components/game/HoldPassTurnButton';
 import { formatClock } from '@/hooks/useLiveClock';
 import type { GameState } from '@/engine/types';
 import { getCurrentTurnElapsedMs } from '@/engine/turns';
@@ -47,9 +48,7 @@ export function TurnBar({
         </View>
       </View>
 
-      <Pressable onPress={onPassTurn} style={styles.passBtn}>
-        <Text style={styles.passText}>Pasar</Text>
-      </Pressable>
+      <HoldPassTurnButton onPass={onPassTurn} />
     </View>
   );
 }
@@ -123,18 +122,5 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.mono,
     fontSize: typography.fontSize.xs,
     color: palette.textMuted,
-  },
-  passBtn: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.full,
-    backgroundColor: palette.accent,
-    minWidth: 72,
-    alignItems: 'center',
-  },
-  passText: {
-    fontFamily: typography.fontFamily.sansBold,
-    fontSize: typography.fontSize.sm,
-    color: '#fff',
   },
 });
